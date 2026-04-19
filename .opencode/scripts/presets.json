@@ -1,0 +1,38 @@
+{
+  "economy": {
+    "description": "모든 워커가 저비용 모델 사용 (비용 절약)",
+    "agents": {
+      "coder":    { "model": "openai/gpt-5.4-mini" },
+      "tester":   { "model": "openai/gpt-5.4-mini" },
+      "fixer":    { "model": "openai/gpt-5.4-mini" },
+      "reviewer": { "model": "openai/gpt-5.4-mini" }
+    }
+  },
+  "quality": {
+    "description": "reviewer만 고급 모델, 나머지는 저비용 (균형)",
+    "agents": {
+      "coder":    { "model": "openai/gpt-5.4-mini" },
+      "tester":   { "model": "openai/gpt-5.4-mini" },
+      "fixer":    { "model": "openai/gpt-5.4-mini" },
+      "reviewer": { "model": "openai/gpt-5.4" }
+    }
+  },
+  "full": {
+    "description": "모든 워커가 고급 모델 사용 (최고 품질)",
+    "agents": {
+      "coder":    { "model": "openai/gpt-5.4" },
+      "tester":   { "model": "openai/gpt-5.4" },
+      "fixer":    { "model": "openai/gpt-5.4" },
+      "reviewer": { "model": "openai/gpt-5.4" }
+    }
+  },
+  "default": {
+    "description": "모든 워커의 명시적 모델 제거 (global default 상속)",
+    "agents": {
+      "coder":    { "model": null },
+      "tester":   { "model": null },
+      "fixer":    { "model": null },
+      "reviewer": { "model": null }
+    }
+  }
+}

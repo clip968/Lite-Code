@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "1.1.0",
+  "purpose": "Lightweight orchestration run/event log for Stage 3 resume tracking; Stage 5-lite auto mode (conservative, no inferred worker outcomes)",
+  "updatedAt": "2026-04-19T00:00:00Z",
+  "fields": {
+    "runId": "Unique identifier for a workflow run",
+    "ticketId": "Target ticket ID (e.g., T-101)",
+    "stage": "Workflow stage label (stage1 | stage2 | stage3 | stage4 | stage5-lite)",
+    "command": "Executed command name (/lite-triage | /lite-implement | /lite-verify | /lite-fix | /lite-review | /lite-auto)",
+    "agent": "Effective agent used (plan | build | reviewer | tester | fixer | manager)",
+    "status": "Result status (STARTED | PASS | FAIL | INSUFFICIENT_EVIDENCE | APPROVED | CHANGES_REQUESTED | BLOCKED | RECORDED)",
+    "timestamp": "RFC3339 UTC timestamp",
+    "summary": "Short human-readable summary",
+    "evidenceRef": "Optional path(s) to logs/tests/artifacts used as evidence",
+    "nextAction": "Recommended next command",
+    "notes": "Optional structured notes. Stage 5-lite optional: mode (manual|auto), workerRole, routeReason, requiresUserApproval, loopIteration, reviewMode (manager|reviewer), delegationCount, parentRunId, artifactSummary"
+  },
+  "allowedStatus": [
+    "STARTED",
+    "PASS",
+    "FAIL",
+    "INSUFFICIENT_EVIDENCE",
+    "APPROVED",
+    "CHANGES_REQUESTED",
+    "BLOCKED",
+    "RECORDED"
+  ],
+  "entries": [
+    {
+      "runId": "run-2026-04-19-0001",
+      "ticketId": "T-201",
+      "stage": "stage2",
+      "command": "/lite-triage",
+      "agent": "plan",
+      "status": "PASS",
+      "timestamp": "2026-04-19T00:01:12Z",
+      "summary": "Ticket decomposition completed with AC and constraints.",
+      "evidenceRef": [],
+      "nextAction": "/lite-implement",
+      "notes": {
+        "scopeLocked": true,
+        "assumptions": ["No API contract change", "Single-ticket execution"]
+      }
+    },
+    {
+      "runId": "run-2026-04-19-0001",
+      "ticketId": "T-201",
+      "stage": "stage2",
+      "command": "/lite-verify",
+      "agent": "tester",
+      "status": "FAIL",
+      "timestamp": "2026-04-19T00:11:43Z",
+      "summary": "AC-2 failed with reproducible validation error path.",
+      "evidenceRef": ["artifacts/tests/t201-verify.log"],
+      "nextAction": "/lite-fix",
+      "notes": {
+        "failedCriteria": ["AC-2"],
+        "reproStepsRef": "artifacts/tests/t201-repro.md"
+      }
+    },
+    {
+      "runId": "run-2026-04-19-0001",
+      "ticketId": "T-201",
+      "stage": "stage2",
+      "command": "/lite-review",
+      "agent": "reviewer",
+      "status": "APPROVED",
+      "timestamp": "2026-04-19T00:22:05Z",
+      "summary": "All mandatory AC passed and verify evidence was sufficient.",
+      "evidenceRef": ["artifacts/tests/t201-verify-rerun.log"],
+      "nextAction": null,
+      "notes": {
+        "decisionConfidence": "high",
+        "resumeState": "done"
+      }
+    },
+    {
+      "runId": "run-2026-04-19-0002",
+      "ticketId": "T-203",
+      "stage": "stage2",
+      "command": "/lite-verify",
+      "agent": "tester",
+      "status": "PASS",
+      "timestamp": "2026-04-19T02:15:00Z",
+      "summary": "Re-verification passed after fix: all ACs met with sufficient evidence.",
+      "evidenceRef": ["artifacts/tests/t203-reverify.log"],
+      "nextAction": "/lite-review",
+      "notes": {
+        "verifiedAfterFix": true,
+        "evidenceLevel": "sufficient"
+      }
+    },
+    {
+      "runId": "run-2026-04-19-s5ex",
+      "ticketId": "T-601",
+      "stage": "stage5-lite",
+      "command": "/lite-auto",
+      "agent": "manager",
+      "status": "RECORDED",
+      "timestamp": "2026-04-19T12:00:00Z",
+      "summary": "/lite-auto manager turn completed — plugin does not infer worker PASS/FAIL; confirm coder/tester/fixer outcomes in session transcript.",
+      "evidenceRef": [],
+      "nextAction": null,
+      "notes": {
+        "mode": "auto",
+        "workerRole": "manager",
+        "routeReason": "example: conservative closeout for auto pipeline",
+        "requiresUserApproval": false,
+        "loopIteration": 0,
+        "reviewMode": "manager",
+        "delegationCount": 0,
+        "delegatedWorkers": [],
+        "finalReviewMode": "manager",
+        "waitingForUser": false,
+        "artifactSummary": "none"
+      }
+    }
+  ]
+}
