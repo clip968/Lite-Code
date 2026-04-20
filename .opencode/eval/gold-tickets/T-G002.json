@@ -1,0 +1,19 @@
+{
+  "id": "T-G002",
+  "category": "risky_bugfix",
+  "source_ticket_id": "T-203",
+  "goal": "Complete Stage 2 verify/fix command flow with evidence-backed review readiness.",
+  "allowed_files": [
+    ".opencode/commands/lite-verify.md",
+    ".opencode/commands/lite-fix.md",
+    "opencode.jsonc",
+    "AGENTS.md"
+  ],
+  "acceptance_criteria": [
+    "/lite-verify routes to tester and /lite-fix routes to fixer.",
+    "Verify-fix-reverify loop can produce REVIEW_PENDING state."
+  ],
+  "non_scope": ["new plugin behaviors", "budget guard changes"],
+  "expected_path": ["plan", "build", "tester", "fixer", "tester", "reviewer"],
+  "expected_outcome": "DONE"
+}

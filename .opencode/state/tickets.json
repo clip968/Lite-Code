@@ -1,67 +1,37 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "schema": {
     "status_values": [
       "PLANNED",
-      "READY",
-      "IN_PROGRESS",
-      "VERIFY_PENDING",
-      "VERIFY_FAILED",
-      "FIX_IN_PROGRESS",
-      "REVERIFY_PENDING",
-      "REVIEW_PENDING",
-      "CHANGES_REQUESTED",
+      "CONTEXT_READY",
+      "IMPLEMENTING",
+      "VERIFYING",
+      "VERIFIED_FAIL",
+      "FIXING",
+      "REVIEWING",
+      "REVIEW_CHANGES",
       "DONE",
-      "BLOCKED",
-      "CANCELLED"
+      "BLOCKED"
     ],
     "allowed_transitions": {
-      "PLANNED": ["READY", "BLOCKED", "CANCELLED"],
-      "READY": ["IN_PROGRESS", "BLOCKED", "CANCELLED"],
-      "IN_PROGRESS": [
-        "VERIFY_PENDING",
-        "REVIEW_PENDING",
-        "BLOCKED",
-        "CANCELLED"
-      ],
-      "VERIFY_PENDING": ["VERIFY_FAILED", "REVIEW_PENDING", "BLOCKED"],
-      "VERIFY_FAILED": ["FIX_IN_PROGRESS", "BLOCKED"],
-      "FIX_IN_PROGRESS": ["REVERIFY_PENDING", "BLOCKED", "CANCELLED"],
-      "REVERIFY_PENDING": ["VERIFY_FAILED", "REVIEW_PENDING", "BLOCKED"],
-      "REVIEW_PENDING": ["DONE", "CHANGES_REQUESTED", "BLOCKED"],
-      "CHANGES_REQUESTED": ["IN_PROGRESS", "FIX_IN_PROGRESS", "CANCELLED"],
+      "PLANNED": ["CONTEXT_READY", "BLOCKED"],
+      "CONTEXT_READY": ["IMPLEMENTING", "BLOCKED"],
+      "IMPLEMENTING": ["VERIFYING", "REVIEWING", "BLOCKED"],
+      "VERIFYING": ["REVIEWING", "VERIFIED_FAIL", "BLOCKED"],
+      "VERIFIED_FAIL": ["FIXING", "BLOCKED"],
+      "FIXING": ["VERIFYING", "BLOCKED"],
+      "REVIEWING": ["DONE", "REVIEW_CHANGES", "BLOCKED"],
+      "REVIEW_CHANGES": ["IMPLEMENTING", "FIXING", "BLOCKED"],
       "DONE": [],
-      "BLOCKED": ["READY", "IN_PROGRESS", "FIX_IN_PROGRESS", "CANCELLED"],
-      "CANCELLED": []
+      "BLOCKED": ["CONTEXT_READY", "IMPLEMENTING", "FIXING", "BLOCKED"]
     },
     "command_handoff": {
-      "lite-triage": ["PLANNED", "READY"],
-      "lite-implement": ["IN_PROGRESS", "VERIFY_PENDING", "REVIEW_PENDING"],
-      "lite-verify": ["VERIFY_FAILED", "REVIEW_PENDING", "REVERIFY_PENDING"],
-      "lite-fix": ["FIX_IN_PROGRESS", "REVERIFY_PENDING"],
-      "lite-review": ["DONE", "CHANGES_REQUESTED"],
-      "lite-auto": [
-        "IN_PROGRESS",
-        "VERIFY_PENDING",
-        "VERIFY_FAILED",
-        "FIX_IN_PROGRESS",
-        "REVERIFY_PENDING",
-        "REVIEW_PENDING",
-        "BLOCKED",
-        "DONE"
-      ]
-    },
-    "optional_ticket_fields_stage5_lite": {
-      "_comment": "Optional per-ticket fields for Stage 5-lite auto mode; omit for manual-only tickets.",
-      "execution_mode": "manual | auto",
-      "manager_owned": "boolean — manager synthesized or drives this ticket in auto mode",
-      "route_reason": "string — short routing note",
-      "loop_count": "number — auto fix/verify iterations",
-      "last_worker": "manager | coder | tester | fixer | reviewer",
-      "approval_required": "boolean",
-      "auto_status": "IDLE | RUNNING | WAITING_USER | DONE | BLOCKED",
-      "artifacts": "string[] — artifact paths or refs",
-      "resume_hint": "string — next human action"
+      "lite-triage": ["PLANNED", "CONTEXT_READY"],
+      "lite-implement": ["IMPLEMENTING", "VERIFYING", "REVIEWING"],
+      "lite-verify": ["VERIFYING", "VERIFIED_FAIL", "REVIEWING"],
+      "lite-fix": ["FIXING", "VERIFYING"],
+      "lite-review": ["REVIEWING", "DONE", "REVIEW_CHANGES"],
+      "lite-auto": ["IMPLEMENTING", "VERIFYING", "VERIFIED_FAIL", "FIXING", "REVIEWING", "BLOCKED", "DONE"]
     }
   },
   "tickets": [
@@ -81,53 +51,20 @@
         "문서상 planner -> plan, coder -> build 매핑이 반영된다."
       ],
       "history": [
-        {
-          "ts": "2026-04-19T00:00:00Z",
-          "from": "PLANNED",
-          "to": "READY",
-          "actor": "planner",
-          "via": "/lite-triage",
-          "note": "티켓 정의 완료"
-        },
-        {
-          "ts": "2026-04-19T00:10:00Z",
-          "from": "READY",
-          "to": "IN_PROGRESS",
-          "actor": "coder",
-          "via": "/lite-implement",
-          "note": "구현 시작"
-        },
-        {
-          "ts": "2026-04-19T00:30:00Z",
-          "from": "IN_PROGRESS",
-          "to": "REVIEW_PENDING",
-          "actor": "coder",
-          "via": "/lite-implement",
-          "note": "Stage 1 변경 제출"
-        },
-        {
-          "ts": "2026-04-19T00:40:00Z",
-          "from": "REVIEW_PENDING",
-          "to": "DONE",
-          "actor": "reviewer",
-          "via": "/lite-review",
-          "note": "승인 완료"
-        }
+        { "ts": "2026-04-19T00:00:00Z", "from": "PLANNED", "to": "CONTEXT_READY", "actor": "planner", "via": "/lite-triage", "note": "티켓 정의 완료" },
+        { "ts": "2026-04-19T00:10:00Z", "from": "CONTEXT_READY", "to": "IMPLEMENTING", "actor": "coder", "via": "/lite-implement", "note": "구현 시작" },
+        { "ts": "2026-04-19T00:30:00Z", "from": "IMPLEMENTING", "to": "REVIEWING", "actor": "coder", "via": "/lite-implement", "note": "Stage 1 변경 제출" },
+        { "ts": "2026-04-19T00:40:00Z", "from": "REVIEWING", "to": "DONE", "actor": "reviewer", "via": "/lite-review", "note": "승인 완료" }
       ]
     },
     {
       "id": "T-203",
       "title": "Stage 2 prefixed commands",
       "stage": 2,
-      "status": "REVIEW_PENDING",
+      "status": "REVIEWING",
       "priority": "high",
       "depends_on": ["T-201", "T-202"],
-      "files_to_modify": [
-        ".opencode/commands/lite-verify.md",
-        ".opencode/commands/lite-fix.md",
-        "opencode.jsonc",
-        "AGENTS.md"
-      ],
+      "files_to_modify": [".opencode/commands/lite-verify.md", ".opencode/commands/lite-fix.md", "opencode.jsonc", "AGENTS.md"],
       "non_scope": ["state 자동 기록", "budget guard", "자동 routing"],
       "acceptance_criteria": [
         "/lite-verify가 tester에 연결된다.",
@@ -136,62 +73,13 @@
         "Stage 2 workflow가 최소 루프로 이어진다."
       ],
       "history": [
-        {
-          "ts": "2026-04-19T01:00:00Z",
-          "from": "PLANNED",
-          "to": "READY",
-          "actor": "planner",
-          "via": "/lite-triage",
-          "note": "Stage 2 티켓 계획"
-        },
-        {
-          "ts": "2026-04-19T01:05:00Z",
-          "from": "READY",
-          "to": "IN_PROGRESS",
-          "actor": "coder",
-          "via": "/lite-implement",
-          "note": "verify/fix command 추가 작업 시작"
-        },
-        {
-          "ts": "2026-04-19T01:25:00Z",
-          "from": "IN_PROGRESS",
-          "to": "VERIFY_PENDING",
-          "actor": "coder",
-          "via": "/lite-implement",
-          "note": "구현 완료, 검증 대기"
-        },
-        {
-          "ts": "2026-04-19T01:35:00Z",
-          "from": "VERIFY_PENDING",
-          "to": "VERIFY_FAILED",
-          "actor": "tester",
-          "via": "/lite-verify",
-          "note": "일부 AC 근거 부족(INSUFFICIENT_EVIDENCE)"
-        },
-        {
-          "ts": "2026-04-19T01:45:00Z",
-          "from": "VERIFY_FAILED",
-          "to": "FIX_IN_PROGRESS",
-          "actor": "fixer",
-          "via": "/lite-fix",
-          "note": "근거 부족 항목 보강"
-        },
-        {
-          "ts": "2026-04-19T02:00:00Z",
-          "from": "FIX_IN_PROGRESS",
-          "to": "REVERIFY_PENDING",
-          "actor": "fixer",
-          "via": "/lite-fix",
-          "note": "재검증 요청"
-        },
-        {
-          "ts": "2026-04-19T02:15:00Z",
-          "from": "REVERIFY_PENDING",
-          "to": "REVIEW_PENDING",
-          "actor": "tester",
-          "via": "/lite-verify",
-          "note": "재검증 통과, 최종 검수 대기"
-        }
+        { "ts": "2026-04-19T01:00:00Z", "from": "PLANNED", "to": "CONTEXT_READY", "actor": "planner", "via": "/lite-triage", "note": "Stage 2 티켓 계획" },
+        { "ts": "2026-04-19T01:05:00Z", "from": "CONTEXT_READY", "to": "IMPLEMENTING", "actor": "coder", "via": "/lite-implement", "note": "verify/fix command 추가 작업 시작" },
+        { "ts": "2026-04-19T01:25:00Z", "from": "IMPLEMENTING", "to": "VERIFYING", "actor": "coder", "via": "/lite-implement", "note": "구현 완료, 검증 대기" },
+        { "ts": "2026-04-19T01:35:00Z", "from": "VERIFYING", "to": "VERIFIED_FAIL", "actor": "tester", "via": "/lite-verify", "note": "일부 AC 근거 부족(INSUFFICIENT_EVIDENCE)" },
+        { "ts": "2026-04-19T01:45:00Z", "from": "VERIFIED_FAIL", "to": "FIXING", "actor": "fixer", "via": "/lite-fix", "note": "근거 부족 항목 보강" },
+        { "ts": "2026-04-19T02:00:00Z", "from": "FIXING", "to": "VERIFYING", "actor": "fixer", "via": "/lite-fix", "note": "재검증 요청" },
+        { "ts": "2026-04-19T02:15:00Z", "from": "VERIFYING", "to": "REVIEWING", "actor": "tester", "via": "/lite-verify", "note": "재검증 통과, 최종 검수 대기" }
       ],
       "execution_mode": "manual",
       "manager_owned": false
@@ -222,36 +110,8 @@
     }
   ],
   "transition_examples": [
-    {
-      "name": "Stage 1 happy path",
-      "path": ["PLANNED", "READY", "IN_PROGRESS", "REVIEW_PENDING", "DONE"]
-    },
-    {
-      "name": "Stage 2 verify-fix loop",
-      "path": [
-        "PLANNED",
-        "READY",
-        "IN_PROGRESS",
-        "VERIFY_PENDING",
-        "VERIFY_FAILED",
-        "FIX_IN_PROGRESS",
-        "REVERIFY_PENDING",
-        "REVIEW_PENDING",
-        "DONE"
-      ]
-    },
-    {
-      "name": "Review rejection partial retry",
-      "path": [
-        "PLANNED",
-        "READY",
-        "IN_PROGRESS",
-        "REVIEW_PENDING",
-        "CHANGES_REQUESTED",
-        "IN_PROGRESS",
-        "REVIEW_PENDING",
-        "DONE"
-      ]
-    }
+    { "name": "Stage 1 happy path", "path": ["PLANNED", "CONTEXT_READY", "IMPLEMENTING", "REVIEWING", "DONE"] },
+    { "name": "Stage 2 verify-fix loop", "path": ["PLANNED", "CONTEXT_READY", "IMPLEMENTING", "VERIFYING", "VERIFIED_FAIL", "FIXING", "VERIFYING", "REVIEWING", "DONE"] },
+    { "name": "Review rejection partial retry", "path": ["PLANNED", "CONTEXT_READY", "IMPLEMENTING", "REVIEWING", "REVIEW_CHANGES", "IMPLEMENTING", "REVIEWING", "DONE"] }
   ]
 }

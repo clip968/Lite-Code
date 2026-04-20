@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TesterOutput",
+  "type": "object",
+  "required": ["ticket_id", "status", "criteria", "evidence"],
+  "properties": {
+    "ticket_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["VERIFIED_PASS", "VERIFIED_FAIL", "BLOCKED"] },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "result"],
+        "properties": {
+          "id": { "type": "string" },
+          "result": { "type": "string", "enum": ["MET", "NOT_MET", "INSUFFICIENT_EVIDENCE"] },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "next_action_hint": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

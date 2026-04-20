@@ -1,0 +1,16 @@
+{
+  "plan_version": "v2",
+  "workflow_stage": "stage5-lite",
+  "updated_at": "2026-04-20T00:00:00Z",
+  "generated_by_command": "/lite-triage",
+  "execution_mode": "manual",
+  "plan_id": "PLAN-20260420-001",
+  "request_summary": "Latest triage output placeholder",
+  "tickets": [],
+  "current_resume_pointer": {
+    "current_ticket": "NONE",
+    "current_step": "IDLE",
+    "last_outcome": "NONE",
+    "next_recommended_command": "/lite-triage"
+  }
+}

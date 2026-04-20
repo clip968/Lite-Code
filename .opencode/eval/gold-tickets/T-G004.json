@@ -1,0 +1,13 @@
+{
+  "id": "T-G004",
+  "category": "test_only",
+  "goal": "Add regression tests for orchestrator command detection and routing decisions.",
+  "allowed_files": [".opencode/tests/orchestrator.test.js", ".opencode/tests/routing.test.js"],
+  "acceptance_criteria": [
+    "Tests verify command detection safety and deterministic routing branches.",
+    "No production logic changes are required."
+  ],
+  "non_scope": ["agent prompts", "state migration"],
+  "expected_path": ["tester"],
+  "expected_outcome": "DONE"
+}

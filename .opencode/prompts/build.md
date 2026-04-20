@@ -48,3 +48,24 @@
 2. 서브에이전트의 결과를 받으면 사용자에게 요약해서 전달한다.
 3. 한 번에 하나의 서브에이전트만 호출한다.
 4. 서브에이전트가 실패를 보고하면 사용자에게 알리고 다음 행동을 묻는다.
+
+## 결정적 라우팅 참고 가이드(v2)
+
+아래 규칙은 참고용 설명이며, 실제 강제는 `orchestrator.ts` + `routing.ts`가 담당한다.
+
+```text
+if context_clarity == low:
+    route -> curator -> coder
+elif task_type == review_only:
+    route -> reviewer
+elif task_type == test_only:
+    route -> tester
+elif risk_level in [high, critical] and interface_change == true:
+    route -> curator -> coder -> tester -> reviewer
+elif task_type == bugfix and prior_failure_evidence == true:
+    route -> curator -> fixer -> tester -> reviewer
+elif requires_runtime_verification == true:
+    route -> curator -> coder -> tester
+else:
+    route -> coder
+```

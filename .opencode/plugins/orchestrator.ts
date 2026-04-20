@@ -1,15 +1,6 @@
-type JsonPrimitive = string | number | boolean | null;
-type JsonValue = JsonPrimitive | JsonObject | JsonArray;
-interface JsonObject {
-  [key: string]: JsonValue;
-}
-interface JsonArray extends Array<JsonValue> {}
+import { parseTicketMeta, routeTicket, type WorkerRole } from "./routing.ts";
+import { validateHistory } from "./state-machine.ts";
 
-/**
- * Run status values.
- * - RECORDED: Stage 5-lite `/lite-auto` manager turn ended without plugin-inferred PASS/FAIL
- *   (see stage5-lite-supervisor-implementation-spec §18.2)
- */
 type RunStatus =
   | "STARTED"
   | "PASS"
@@ -20,7 +11,7 @@ type RunStatus =
   | "BLOCKED"
   | "RECORDED";
 
-interface RunLogEntry extends JsonObject {
+interface RunLogEntry {
   runId: string;
   ticketId: string;
   stage: string;
@@ -29,56 +20,54 @@ interface RunLogEntry extends JsonObject {
   status: RunStatus;
   timestamp: string;
   summary: string;
-  evidenceRef: JsonArray;
+  evidenceRef: string[];
   nextAction: string | null;
-  notes: JsonObject;
+  tokens_input: number;
+  tokens_output: number;
+  cost_usd: number;
+  model: string;
+  worker_role: string;
+  handoff_count: number;
+  scope_violation: boolean;
+  first_pass: boolean;
+  notes: Record<string, unknown>;
 }
 
-interface RunLogFile extends JsonObject {
+interface RunLogFile {
   schemaVersion: string;
   purpose: string;
   updatedAt: string;
-  fields: JsonObject;
-  allowedStatus: JsonArray;
-  entries: JsonArray;
+  fields: Record<string, string>;
+  allowedStatus: string[];
+  entries: RunLogEntry[];
 }
 
 interface PluginContext {
-  project?: {
-    root?: string;
-    id?: string;
-  };
   $?: {
     file(path: string): {
       text(): Promise<string>;
       write(content: string): Promise<void>;
-      append(content: string): Promise<void>;
     };
-    path(...parts: string[]): string;
   };
 }
 
-interface ToolBeforeInput {
-  tool?: string;
-  args?: Record<string, unknown>;
-}
-
-interface ToolBeforeOutput {
-  args?: Record<string, unknown>;
-}
-
-interface ToolAfterInput {
-  tool?: string;
-  args?: Record<string, unknown>;
-}
-
-interface ToolAfterOutput {
-  result?: unknown;
-}
-
 const STATE_PATH = ".opencode/state/run-log.json";
+const TICKETS_PATH = ".opencode/state/tickets.json";
+const REQUIRED_PACKET_FIELDS = [
+  "packet_version",
+  "request_id",
+  "schema_version",
+  "run_id",
+  "ticket_id",
+  "worker_role",
+  "goal",
+  "allowed_files",
+  "constraints",
+  "acceptance_criteria",
+  "non_scope",
+  "risk_level",
+] as const;
 
-/** Terminal success statuses for manual /lite-* commands only. `/lite-auto` uses RECORDED. */
 const COMMAND_STATUS_MAP: Record<string, RunStatus> = {
   "/lite-triage": "PASS",
   "/lite-implement": "PASS",
@@ -87,46 +76,38 @@ const COMMAND_STATUS_MAP: Record<string, RunStatus> = {
   "/lite-review": "APPROVED",
 };
 
-function nowIso(): string {
+function nowIso() {
   return new Date().toISOString();
 }
 
-function safeString(value: unknown, fallback: string): string {
-  return typeof value === "string" && value.trim().length > 0
-    ? value
-    : fallback;
-}
-
-function randomId(len = 6): string {
+function randomId(len = 6) {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   let out = "";
-  for (let i = 0; i < len; i += 1) {
-    out += chars[Math.floor(Math.random() * chars.length)];
-  }
+  for (let i = 0; i < len; i += 1) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
 
-export function detectCommand(args?: Record<string, unknown>): string {
+export function detectCommand(args?: Record<string, unknown>) {
   const cmd = typeof args?.command === "string" ? args.command : "";
   return cmd || "unknown";
 }
 
-function detectStage(command: string, ticketId?: string): string {
+function detectTicketId(args?: Record<string, unknown>) {
+  const prompt = typeof args?.prompt === "string" ? args.prompt : "";
+  const match = prompt.match(/\bT-(?:FIX-)?\d+\b/i);
+  return match?.[0]?.toUpperCase() ?? "UNKNOWN";
+}
+
+function detectStage(command: string) {
   if (command === "/lite-auto") return "stage5-lite";
   if (command === "/lite-verify" || command === "/lite-fix") return "stage2";
-  if (ticketId && ticketId.includes("FIX")) return "stage2";
-
-  if (
-    command === "/lite-triage" ||
-    command === "/lite-implement" ||
-    command === "/lite-review"
-  ) {
-    return ticketId && ticketId.includes("FIX") ? "stage2" : "stage1";
+  if (command === "/lite-triage" || command === "/lite-implement" || command === "/lite-review") {
+    return "stage1";
   }
   return "unknown";
 }
 
-function detectAgent(command: string): string {
+function detectAgent(command: string) {
   switch (command) {
     case "/lite-triage":
       return "plan";
@@ -145,184 +126,178 @@ function detectAgent(command: string): string {
   }
 }
 
-function detectTicketId(args?: Record<string, unknown>): string {
-  const prompt = typeof args?.prompt === "string" ? args.prompt : "";
-  // Support T-101, T-601, T-FIX-1 formats
-  const match = prompt.match(/\bT-(?:FIX-)?\d+\b/i);
-  return match?.[0]?.toUpperCase() ?? "UNKNOWN";
-}
-
 function terminalStatusForCommand(command: string): RunStatus {
   if (command === "/lite-auto") return "RECORDED";
   return COMMAND_STATUS_MAP[command] || "PASS";
 }
 
-function makeEntry(
-  command: string,
-  args?: Record<string, unknown>,
-): RunLogEntry {
-  const ticketId = detectTicketId(args);
-  const isAuto = command === "/lite-auto";
+function parseJsonPacketFromPrompt(prompt: string): { packet?: Record<string, unknown>; errors: string[] } {
+  const errors: string[] = [];
+  const block = prompt.match(/```json\s*([\s\S]*?)```/i);
+  if (!block) return { errors: ["json_block_not_found"] };
+  try {
+    const packet = JSON.parse(block[1]) as Record<string, unknown>;
+    for (const key of REQUIRED_PACKET_FIELDS) {
+      if (!(key in packet)) errors.push(`missing_${key}`);
+    }
+    return { packet, errors };
+  } catch {
+    return { errors: ["json_parse_error"] };
+  }
+}
 
+function makeEntry(command: string, args?: Record<string, unknown>): RunLogEntry {
   return {
     runId: `run-${new Date().toISOString().slice(0, 10)}-${randomId(6)}`,
-    ticketId,
-    stage: detectStage(command, ticketId),
+    ticketId: detectTicketId(args),
+    stage: detectStage(command),
     command,
     agent: detectAgent(command),
     status: "STARTED",
     timestamp: nowIso(),
-    summary: safeString(
-      args?.summary,
-      isAuto
-        ? "Stage 5-lite /lite-auto manager turn started (no inferred worker outcomes)"
-        : `Lifecycle record for ${command}`,
-    ),
+    summary: typeof args?.summary === "string" ? args.summary : `Lifecycle record for ${command}`,
     evidenceRef: [],
-    nextAction: isAuto
-      ? null
-      : command === "/lite-triage"
-        ? "/lite-implement"
-        : command === "/lite-implement"
-          ? ticketId.includes("FIX")
-            ? "/lite-verify"
-            : "/lite-review"
-          : command === "/lite-verify"
-            ? "/lite-review"
-            : command === "/lite-fix"
-              ? "/lite-verify"
-              : null,
-    notes: isAuto
-      ? {
-          source: "thin-orchestrator-plugin",
-          lightweight: true,
-          mode: "auto",
-          orchestratorPolicy:
-            "no-fake-manual-command-success-for-auto; manager turn only",
-          delegatedWorkers: [],
-          routeReason: "",
-          loopCount: 0,
-          finalReviewMode: "",
-          waitingForUser: false,
-        }
-      : {
-          source: "thin-orchestrator-plugin",
-          lightweight: true,
-        },
+    nextAction: null,
+    tokens_input: 0,
+    tokens_output: 0,
+    cost_usd: 0,
+    model: "unknown",
+    worker_role: "unknown",
+    handoff_count: 0,
+    scope_violation: false,
+    first_pass: false,
+    notes: {
+      source: "orchestrator-v2",
+      softValidation: true,
+    },
   };
 }
 
 function bootstrapLog(): RunLogFile {
   return {
-    schemaVersion: "1.1.0",
-    purpose:
-      "Lightweight orchestration run/event log for Stage 3 resume tracking; Stage 5-lite auto mode extensions in notes",
+    schemaVersion: "2.0.0",
+    purpose: "Lite-Code orchestration run/event ledger with metric-ready fields.",
     updatedAt: nowIso(),
     fields: {
       runId: "Unique identifier for a workflow run",
       ticketId: "Target ticket ID",
       stage: "Workflow stage label",
       command: "Executed command",
-      agent: "Effective agent used (manager for /lite-auto)",
+      agent: "Effective agent used",
       status: "Result status",
       timestamp: "RFC3339 UTC timestamp",
       summary: "Short human-readable summary",
       evidenceRef: "Optional paths to artifacts",
       nextAction: "Recommended next command",
-      notes:
-        "Structured notes; Stage 5-lite: mode, workerRole, routeReason, loopIteration, reviewMode, delegationCount, parentRunId, artifactSummary (optional)",
+      tokens_input: "Step input token estimate",
+      tokens_output: "Step output token estimate",
+      cost_usd: "Step cost estimate",
+      model: "Model used",
+      worker_role: "Worker role for this step",
+      handoff_count: "Cumulative handoff count",
+      scope_violation: "Whether scope violation was observed",
+      first_pass: "Whether ticket passed without fixer loop",
+      notes: "Structured routing/validation diagnostics",
     },
-    allowedStatus: [
-      "STARTED",
-      "PASS",
-      "FAIL",
-      "INSUFFICIENT_EVIDENCE",
-      "APPROVED",
-      "CHANGES_REQUESTED",
-      "BLOCKED",
-      "RECORDED",
-    ],
+    allowedStatus: ["STARTED", "PASS", "FAIL", "INSUFFICIENT_EVIDENCE", "APPROVED", "CHANGES_REQUESTED", "BLOCKED", "RECORDED"],
     entries: [],
   };
 }
 
 export const OrchestratorPlugin = async (ctx: PluginContext) => {
-  async function updateLifecycleStatus(
-    args: Record<string, unknown> | undefined,
-    status?: RunStatus,
-  ) {
+  async function readRunLog() {
+    const file = ctx.$?.file(STATE_PATH);
+    if (!file) return bootstrapLog();
+    try {
+      const raw = await file.text();
+      if (!raw.trim()) return bootstrapLog();
+      return JSON.parse(raw) as RunLogFile;
+    } catch {
+      return bootstrapLog();
+    }
+  }
+
+  async function validateStateMachine() {
+    const file = ctx.$?.file(TICKETS_PATH);
+    if (!file) return [];
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw) as { tickets?: Array<{ id?: string; history?: Array<{ from?: string; to?: string }> }> };
+      const errors: string[] = [];
+      for (const t of parsed.tickets ?? []) errors.push(...validateHistory(t));
+      return errors;
+    } catch {
+      return ["tickets_parse_error"];
+    }
+  }
+
+  async function updateLifecycleStatus(args: Record<string, unknown> | undefined, status?: RunStatus) {
     if (!ctx.$) return;
     const command = detectCommand(args);
     if (!command.startsWith("/lite-")) return;
 
     const file = ctx.$.file(STATE_PATH);
-    let parsed: RunLogFile = bootstrapLog();
-
-    try {
-      const raw = await file.text();
-      if (raw && raw.trim()) {
-        parsed = JSON.parse(raw) as RunLogFile;
-      }
-    } catch {
-      // ignore
-    }
-
-    const entries = Array.isArray(parsed.entries)
-      ? (parsed.entries as unknown as RunLogEntry[])
-      : [];
+    const parsed = await readRunLog();
+    const entries = Array.isArray(parsed.entries) ? parsed.entries : [];
 
     if (!status) {
-      entries.push(makeEntry(command, args));
+      const entry = makeEntry(command, args);
+      const prompt = typeof args?.prompt === "string" ? args.prompt : "";
+      const { packet, errors } = parseJsonPacketFromPrompt(prompt);
+
+      if (packet) {
+        entry.worker_role = typeof packet.worker_role === "string" ? packet.worker_role : "unknown";
+      }
+      if (errors.length > 0) {
+        entry.notes.taskPacketValid = false;
+        entry.notes.taskPacketErrors = errors;
+      } else {
+        entry.notes.taskPacketValid = true;
+      }
+
+      const meta = parseTicketMeta({ ...(args ?? {}), ...(packet ?? {}) });
+      const expected = routeTicket(meta);
+      const actualWorker =
+        (typeof args?.agent === "string" ? args.agent : undefined) ??
+        (typeof packet?.worker_role === "string" ? packet.worker_role : "unknown");
+      entry.notes.routeReason = expected.reason;
+      entry.notes.expectedRoute = expected.sequence;
+      entry.notes.actualWorker = actualWorker;
+      entry.notes.routeDeviation = !expected.sequence.includes(actualWorker as WorkerRole);
+
+      const stateErrors = await validateStateMachine();
+      if (stateErrors.length > 0) {
+        entry.notes.illegalTransition = true;
+        entry.notes.stateErrors = stateErrors;
+      }
+
+      entries.push(entry);
     } else {
-      for (let i = entries.length - 1; i >= 0; i--) {
+      for (let i = entries.length - 1; i >= 0; i -= 1) {
         if (entries[i].command === command && entries[i].status === "STARTED") {
           entries[i].status = status;
           entries[i].timestamp = nowIso();
-
-          if (command === "/lite-auto" && status === "RECORDED") {
-            entries[i].summary =
-              "/lite-auto manager turn completed — plugin does not infer worker PASS/FAIL; confirm in transcript and state files.";
-            entries[i].nextAction = null;
-            const n = entries[i].notes as Record<string, unknown>;
-            if (n && typeof n === "object") {
-              n.orchestratorPolicy =
-                "conservative: RECORDED replaces terminal PASS for auto pipeline";
-            }
-            break;
-          }
-
-          if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") {
-            entries[i].nextAction = "/lite-fix";
-          } else if (status === "CHANGES_REQUESTED") {
-            entries[i].nextAction = "/lite-implement";
-          }
+          if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") entries[i].nextAction = "/lite-fix";
+          if (status === "CHANGES_REQUESTED") entries[i].nextAction = "/lite-implement";
           break;
         }
       }
     }
 
-    parsed.entries = entries as unknown as JsonArray;
+    parsed.entries = entries;
     parsed.updatedAt = nowIso();
-
     await file.write(`${JSON.stringify(parsed, null, 2)}\n`);
   }
 
   return {
-    "tool.execute.before": async (
-      input: ToolBeforeInput,
-      _output: ToolBeforeOutput,
-    ) => {
+    "tool.execute.before": async (input: { tool?: string; args?: Record<string, unknown> }) => {
       if (input.tool !== "task") return;
       await updateLifecycleStatus(input.args);
     },
-    "tool.execute.after": async (
-      input: ToolAfterInput,
-      _output: ToolAfterOutput,
-    ) => {
+    "tool.execute.after": async (input: { tool?: string; args?: Record<string, unknown> }) => {
       if (input.tool !== "task") return;
       const command = detectCommand(input.args);
-      const successStatus = terminalStatusForCommand(command);
-      await updateLifecycleStatus(input.args, successStatus);
+      await updateLifecycleStatus(input.args, terminalStatusForCommand(command));
     },
   };
 };

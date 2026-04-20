@@ -7,6 +7,9 @@
     ".opencode/plugins/model-config.ts"
   ],
   "agent": {
+    "curator": {
+      "model": "openai/gpt-5.4-mini"
+    },
     "coder": {
       "model": "openai/gpt-5.4-mini"
     },

@@ -1,0 +1,13 @@
+{
+  "id": "T-G003",
+  "category": "simple_bugfix",
+  "goal": "Fix command metadata typo in one command document.",
+  "allowed_files": [".opencode/commands/lite-review.md"],
+  "acceptance_criteria": [
+    "Frontmatter remains valid markdown metadata.",
+    "No change outside target command file."
+  ],
+  "non_scope": ["plugin logic", "state file schema"],
+  "expected_path": ["build"],
+  "expected_outcome": "DONE"
+}

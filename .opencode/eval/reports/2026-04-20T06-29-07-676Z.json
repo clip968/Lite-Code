@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-04-20T06:29:07.674Z",
+  "filters": {
+    "preset": "baseline",
+    "curator": "off",
+    "wiki": "off"
+  },
+  "totals": {
+    "tickets": 2,
+    "entries": 3
+  },
+  "metrics": {
+    "first_pass_success_rate": 0.5,
+    "review_rejection_rate": 0,
+    "fix_loop_rate": 0,
+    "average_handoffs": 0.5,
+    "scope_violation_rate": 0,
+    "tokens_per_ticket": 2440,
+    "cost_per_success": 0.0161,
+    "wall_time_per_ticket": 311,
+    "blocked_rate": 0
+  }
+}

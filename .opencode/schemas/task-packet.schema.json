@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TaskPacket",
+  "type": "object",
+  "required": [
+    "packet_version",
+    "request_id",
+    "schema_version",
+    "run_id",
+    "ticket_id",
+    "worker_role",
+    "goal",
+    "allowed_files",
+    "constraints",
+    "acceptance_criteria",
+    "non_scope",
+    "risk_level",
+    "mode"
+  ],
+  "properties": {
+    "packet_version": { "type": ["string", "number"] },
+    "request_id": { "type": "string" },
+    "schema_version": { "type": "string" },
+    "run_id": { "type": "string" },
+    "parent_run_id": { "type": ["string", "null"] },
+    "ticket_id": { "type": "string" },
+    "worker_role": { "type": "string", "enum": ["curator", "coder", "tester", "fixer", "reviewer"] },
+    "goal": { "type": "string" },
+    "allowed_files": { "type": "array", "items": { "type": "string" } },
+    "forbidden_files": { "type": "array", "items": { "type": "string" } },
+    "constraints": { "type": "array", "items": { "type": "string" } },
+    "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+    "test_requirements": { "type": "array", "items": { "type": "string" } },
+    "non_scope": { "type": "array", "items": { "type": "string" } },
+    "context_refs": { "type": "array", "items": { "type": "string" } },
+    "risk_level": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+    "budget_hint": { "type": ["string", "null"] },
+    "iteration": { "type": "integer", "minimum": 0 },
+    "mode": { "type": "string", "enum": ["manual", "auto"] }
+  },
+  "additionalProperties": true
+}

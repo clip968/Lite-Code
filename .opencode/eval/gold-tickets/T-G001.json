@@ -1,0 +1,14 @@
+{
+  "id": "T-G001",
+  "category": "bounded_feature",
+  "source_ticket_id": "T-101",
+  "goal": "Align Stage 1 command structure and role mapping.",
+  "allowed_files": ["AGENTS.md", "opencode.jsonc", ".opencode/commands/"],
+  "acceptance_criteria": [
+    "Stage 1 command names are /lite-triage, /lite-implement, /lite-review.",
+    "Planner and build role mapping is reflected consistently."
+  ],
+  "non_scope": ["tester/fixer command additions", "state automation"],
+  "expected_path": ["plan", "build", "reviewer"],
+  "expected_outcome": "DONE"
+}

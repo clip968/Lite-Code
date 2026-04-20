@@ -53,23 +53,14 @@ Map these to **official** `tickets.json` `status` values when you update state; 
 
 ### Step 4 — Build **Delegation Packet** (all worker calls)
 
-Every packet **must** include:
+Every packet **must** follow `.opencode/schemas/task-packet.schema.json`.
+필수 필드는 스키마를 단일 기준으로 사용하고, 이 문서에는 요약만 유지한다.
 
-- `packet_version` (e.g. `1`)
-- `request_id` (short id)
-- `ticket_id`, `ticket_title`
-- `worker_role` (`coder` | `tester` | `fixer` | `reviewer`)
-- `goal`
-- `files_in_scope` (1–8 core paths)
-- `read_context` (short)
-- `write_scope` (for `tester`/`reviewer`: **empty** or read-only note)
-- `constraints`, `acceptance_criteria`, `non_scope`
-- `input_artifacts` (summaries, artifact refs)
-- `previous_step_summary` (3–8 bullets max)
-- `expected_output_contract` (list the section headers the worker must use)
-- `risk_level` (`low` | `medium` | `high`)
-- `iteration` (loop index)
-- `mode`: `auto`
+- `packet_version`, `request_id`, `schema_version`
+- `run_id`, `ticket_id`, `worker_role`
+- `goal`, `allowed_files`, `constraints`, `acceptance_criteria`, `non_scope`
+- `risk_level`, `iteration`, `mode`
+- optional: `context_refs`, `test_requirements`, `budget_hint`, `forbidden_files`
 
 **Size:** no full transcripts; no whole-repo dump; prior step **summary** only.
 

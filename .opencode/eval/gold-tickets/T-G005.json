@@ -1,0 +1,13 @@
+{
+  "id": "T-G005",
+  "category": "review_only",
+  "goal": "Review high-risk config change touching orchestrator plugin and model routing config.",
+  "allowed_files": [".opencode/plugins/orchestrator.ts", "opencode.jsonc"],
+  "acceptance_criteria": [
+    "Reviewer confirms no risky destructive command path was introduced.",
+    "Model override remains explicit for all worker roles."
+  ],
+  "non_scope": ["feature implementation", "state migration"],
+  "expected_path": ["reviewer"],
+  "expected_outcome": "DONE"
+}

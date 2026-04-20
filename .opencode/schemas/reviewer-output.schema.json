@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReviewerOutput",
+  "type": "object",
+  "required": ["ticket_id", "status", "confidence", "findings", "scope_violation", "constraint_violation"],
+  "properties": {
+    "ticket_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["APPROVED", "CHANGES_REQUESTED", "BLOCKED"] },
+    "confidence": { "type": "string", "enum": ["High", "Medium", "Low"] },
+    "findings": {
+      "type": "object",
+      "required": ["critical", "major", "minor"],
+      "properties": {
+        "critical": { "type": "array", "items": { "type": "string" } },
+        "major": { "type": "array", "items": { "type": "string" } },
+        "minor": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "scope_violation": { "type": "boolean" },
+    "constraint_violation": { "type": "boolean" },
+    "required_actions": { "type": "array", "items": { "type": "string" } },
+    "wiki_update_needed": { "type": "boolean" },
+    "wiki_update_draft": { "type": "string" }
+  },
+  "additionalProperties": false
+}
