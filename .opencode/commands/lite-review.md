@@ -1,5 +1,5 @@
 ---
-description: Stage 1/2 최종 품질 게이트 리뷰 수행
+description: Stage 1/2 final quality gate review
 agent: reviewer
 subtask: true
 ---
@@ -23,26 +23,26 @@ In **auto mode** (`/lite-auto`), the main-session **manager** may perform a **ma
 - Implementation Summary
   - Files changed
   - Key logic changes
-- Verification Evidence (Stage 2 필수)
-  - `/lite-verify` 결과
-  - AC별 PASS/FAIL/INSUFFICIENT_EVIDENCE 근거
-  - 테스트 실행 요약, 로그, 재현 절차(해당 시)
-- Fix Evidence (해당 시)
-  - `/lite-fix` 수행 내용
-  - 수정 파일 범위
-  - 재검증 요청/결과
+- Verification Evidence (required for Stage 2)
+  - `/lite-verify` results
+  - Per-AC PASS/FAIL/INSUFFICIENT_EVIDENCE evidence
+  - Test execution summary, logs, reproduction steps (if applicable)
+- Fix Evidence (if applicable)
+  - `/lite-fix` actions taken
+  - Modified file scope
+  - Re-verification request/results
 
 ## Review Rules
 1. **Acceptance-first**
-   - 티켓 acceptance criteria 충족 여부를 최우선으로 판정한다.
+   - Judge whether ticket acceptance criteria are fulfilled as the top priority.
 2. **Verify-evidence-first (Stage 2)**
-   - Stage 2에서는 `/lite-verify` 근거 없이 승인하지 않는다.
+   - Do not approve without `/lite-verify` evidence in Stage 2.
 3. **Evidence-based only**
-   - 코드 변경, 테스트 결과, 로그, 재현 정보 등 확인 가능한 근거만 사용한다.
+   - Use only verifiable evidence such as code changes, test results, logs, and reproduction information.
 4. **Scope/constraint discipline**
-   - 티켓 범위 밖 변경과 제약 위반을 명시적으로 기록한다.
+   - Explicitly document out-of-ticket changes and constraint violations.
 5. **Actionable rejection**
-   - 반려 시 재작업 가능한 최소 액션만 요청한다(광범위 리팩터링 금지).
+   - When rejecting, request only the minimum actionable rework needed (no broad refactoring).
 
 ## Output Format (Required)
 
@@ -77,8 +77,8 @@ In **auto mode** (`/lite-auto`), the main-session **manager** may perform a **ma
 Return `CHANGES_REQUESTED` if any of the following is true:
 - Any mandatory acceptance criterion is `FAIL`
 - Core criterion is `INSUFFICIENT_EVIDENCE`
-- Stage 2인데 verify evidence가 누락됨
-- Verify 결과와 구현/수정 결과가 모순됨
+- In Stage 2 and verify evidence is missing
+- Verify results contradict implementation/fix results
 - Scope/constraint violation introduces meaningful risk
 - Critical safety/stability/security concern exists
 - Known reproducible defect remains unresolved

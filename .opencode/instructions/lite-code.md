@@ -1,116 +1,154 @@
-# Lite-Code 오케스트레이션 정책
+# Lite-Code Orchestration Policy
 
-이 문서는 Lite-Code의 **공통 오케스트레이션 규칙**입니다. 프로젝트 고유 규칙이 아니므로 다른 저장소에서도 그대로 재사용할 수 있도록 분리되어 있습니다. `opencode.jsonc`의 `instructions` 필드를 통해 자동 로드됩니다.
-
-## 목적
-
-1. 상위 판단(계획/검수)과 실행(구현/검증/수정)을 분리한다.
-2. 고가 모델 사용 지점을 최소화하여 비용을 통제한다.
-3. `build`가 서브에이전트를 **skill로 직접 호출**하여 작업을 위임할 수 있다.
+This document defines **shared orchestration rules** for Lite-Code. It is not project-specific so it can be reused across repositories. It is auto-loaded via the `instructions` field in `opencode.jsonc`.
 
 ---
 
-## 에이전트 구조
+## 🛑 Build Agent Exploration Prohibition (applies only to the build agent)
 
-### 메인 에이전트 (tab으로 전환)
-| 에이전트 | 역할 |
+> **This section applies only to the `build` agent. Other subagents (`curator`, `coder`, `tester`, `fixer`, `reviewer`) should ignore it.**
+
+`build` is an expensive, high-level agent. Codebase exploration and understanding is the job of the **low-cost `curator` subagent**.
+
+### What build must NOT do
+
+When the user's request involves "understanding / explaining / status / analysis / summarizing / checking structure / what exists / what's missing", or is in an early exploration phase where the scope is not yet defined:
+
+- Do **not** call `Read`, `Grep`, or `Glob` two or more times in a row directly.
+- Do **not** read "structure overview" file sets such as `README`, `package.json`, entry-point files, `routes/`, `controllers/`, `src/`, `app/` directly.
+- The moment you think "let me check the structure first", **stop** and delegate to curator.
+
+### What build MUST do
+
+1. Your **first action** must be to **call `curator` via the `task` tool**.
+2. Payload:
+   - `mode`: `"exploration"` (for understanding/explaining requests) or `"structured"` (for context collection before implementation)
+   - `user_request`: the user's original text
+   - `hints`: suspected relevant keywords/directories (or leave empty)
+3. Answer the user based **only** on curator's result (Markdown report or JSON packet).
+4. Only when curator's result is clearly insufficient may you read **1–2 files** directly; if you need more, delegate to curator again.
+
+### Exceptions where build may read directly
+
+- The user specified an explicit path for 1–2 files
+- Curator just pointed to a specific file + line range that you need to confirm
+- A single-file, single-function question
+
+---
+
+## Purpose
+
+1. Separate high-level judgment (planning/review) from execution (implementation/verification/fixing).
+2. Minimize expensive model usage to control costs.
+3. Allow `build` to directly invoke subagents as **skills** and delegate work.
+
+---
+
+## Agent Structure
+
+### Main agents (switch via tab)
+| Agent | Role |
 |---|---|
-| `plan` | 요구사항 분석, 티켓 분해, 수용 기준 작성 (읽기 전용) |
-| `build` | 구현 총괄. 단순 작업은 직접, 복잡한 작업은 서브에이전트에 위임 |
+| `plan` | Requirements analysis, ticket decomposition, acceptance criteria drafting (read-only) |
+| `build` | Implementation orchestration. Handles simple tasks directly; delegates complex ones to subagents |
 
-### 서브에이전트 (build가 task 도구로 호출)
-| 에이전트 | 역할 | 모델 정책 |
+### Subagents (invoked by build via the task tool)
+| Agent | Role | Model policy |
 |---|---|---|
-| `coder` | 단일 티켓 범위의 코드 구현 | 저가/고속 |
-| `tester` | acceptance criteria 기준 검증 | 저가/고속 |
-| `fixer` | 검증 실패 시 최소 범위 수정 | 저가/고속 |
-| `reviewer` | 최종 품질 게이트, 승인/반려 | 고성능 |
+| `coder` | Code implementation within a single ticket scope | Low-cost/fast |
+| `tester` | Verification against acceptance criteria | Low-cost/fast |
+| `fixer` | Minimal-scope fix after verification failure | Low-cost/fast |
+| `reviewer` | Final quality gate, approve/reject | High-performance |
 
 ---
 
-## 위임 규칙
+## Delegation Rules
 
-### build가 서브에이전트를 호출하는 경우
-- 수정 대상 파일이 3개 이상인 복잡한 구현 → `coder`
-- 구현 후 검증이 필요한 경우 → `tester`
-- 테스트 실패 후 수정이 필요한 경우 → `fixer`
-- 코드 리뷰/설계 검토가 필요한 경우 → `reviewer`
+### When build should call a subagent
+- **Code understanding / exploration / status summary (requests requiring 3+ file reads)** → `curator` (mode: exploration)
+- Complex implementation involving 3+ target files → `curator` → `coder`
+- Verification needed after implementation → `tester`
+- Fix needed after test failure → `fixer`
+- Code review / design review needed → `curator` → `reviewer`
 
-### build가 직접 처리하는 경우
-- 단순한 파일 수정 (1~2개 파일)
-- 질문 답변, 파일 확인/검색
-- 간단한 버그 수정
+### When build should handle directly
+- Simple file edits (1–2 files, context already provided)
+- Answering questions when context is already sufficient
+- Checking the content of a specific 1–2 files
+- Simple bug fixes
 
-### 위임 시 필수 규칙
-1. 한 번에 하나의 서브에이전트만 호출한다.
-2. 전달 프롬프트에 **목표, 대상 파일, 제약 조건, 수용 기준**을 포함한다.
-3. 서브에이전트 간 직접 호출은 금지한다 (반드시 build를 거친다).
-4. 서브에이전트가 실패 보고 시 사용자에게 알리고 다음 행동을 묻는다.
+> **Prohibition:** `build` must not broadly scan the codebase using `Read`/`Grep`/`Glob` while running an expensive model. This work must always be delegated to curator.
+
+### Mandatory rules for delegation
+1. Call only one subagent at a time.
+2. Include **goal, target files, constraints, and acceptance criteria** in the delegation prompt.
+3. Direct calls between subagents are prohibited (must go through build).
+4. If a subagent reports a failure, notify the user and ask about next steps.
 
 ---
 
-## 역할별 권한
+## Role Permissions
 
-| 역할 | 파일 수정 | 코드 실행 | 범위 |
+| Role | File editing | Code execution | Scope |
 |---|---|---|---|
-| `plan` | ❌ | ❌ | 읽기/분석만 |
-| `build` | ✅ | ✅ | 전체 조율 |
-| `coder` | ✅ | 제한적 | 티켓 범위 내 |
-| `tester` | ❌ | ✅ (검증용) | 검증만 |
-| `fixer` | ✅ | 제한적 | 실패 원인 범위 내 |
-| `reviewer` | ❌ | ❌ | 읽기/판단만 |
+| `plan` | ❌ | ❌ | Read/analyze only |
+| `build` | ✅ | ✅ | Full orchestration |
+| `coder` | ✅ | Limited | Within ticket scope |
+| `tester` | ❌ | ✅ (for verification) | Verification only |
+| `fixer` | ✅ | Limited | Within failure cause scope |
+| `reviewer` | ❌ | ❌ | Read/judge only |
 
 ---
 
-## 모델 사용 정책
+## Model Usage Policy
 
 ```
-opencode.jsonc 구조:
-  "model": "..."              ← 메인(build/plan) 기본 모델
-  "agent.coder.model": "..."  ← coder 전용 (저가)
-  "agent.tester.model": "..." ← tester 전용 (저가)
-  "agent.fixer.model": "..."  ← fixer 전용 (저가)
-  "agent.reviewer.model": "..." ← reviewer 전용 (고성능)
+opencode.jsonc structure:
+  "model": "..."              ← main (build/plan) default model
+  "agent.coder.model": "..."  ← coder-specific (low-cost)
+  "agent.tester.model": "..." ← tester-specific (low-cost)
+  "agent.fixer.model": "..."  ← fixer-specific (low-cost)
+  "agent.reviewer.model": "..." ← reviewer-specific (high-performance)
 ```
 
-- **고성능 모델**: 판단/계획/검수 지점 (`plan`, `reviewer`)
-- **저가/고속 모델**: 구현/검증/수정 반복 (`coder`, `tester`, `fixer`)
-- 실제 모델 ID는 `.opencode/scripts/presets.json`이 단일 출처입니다.
-- 프리셋 전환: `node .opencode/scripts/switch-preset.js <preset>`
-- 개인 환경에서 특정 모델을 override하려면 전역 `~/.config/opencode/opencode.json`의 `agent.<name>.model`을 사용하세요.
+- **High-performance models**: Judgment/planning/review points (`plan`, `reviewer`)
+- **Low-cost/fast models**: Implementation/verification/fix loops (`coder`, `tester`, `fixer`)
+- Actual model IDs are stored in `.opencode/scripts/presets.json` as the single source of truth.
+- To switch presets: `node .opencode/scripts/switch-preset.js <preset>`
+- To override a specific model in your personal environment, use `agent.<name>.model` in `~/.config/opencode/opencode.json`.
 
 ---
 
-## 변경 통제
+## Change Control
 
-- 한 번에 하나의 티켓만 구현/수정한다.
-- 티켓 범위 밖 파일 수정은 금지한다.
-- "좋아 보이는 추가 개선"은 금지한다.
-- 요구사항이 모호하면 추측하지 말고 사용자에게 묻는다.
+- Implement/modify only one ticket at a time.
+- Editing files outside the ticket scope is prohibited.
+- "Nice-to-have improvements" are prohibited.
+- If requirements are ambiguous, ask the user instead of guessing.
 
 ---
 
-## 명령어
+## Commands
 
-### 자동 위임 (build가 판단)
-일반 대화에서 build에게 요청하면 복잡도에 따라 자동 위임한다.
+### Automatic delegation (build decides)
+When you make a request to build in normal conversation, it delegates automatically based on complexity.
 
-### 수동 오케스트레이션 (필요 시)
-| 명령 | 역할 |
+### Manual orchestration (when needed)
+| Command | Role |
 |---|---|
-| `/lite-triage` | 계획/분석 (plan) |
-| `/lite-implement` | 구현 (build) |
-| `/lite-verify` | 검증 (tester) |
-| `/lite-fix` | 수정 (fixer) |
-| `/lite-review` | 검수 (reviewer) |
-| `/lite-auto` | 전체 자동 루프 |
-| `/switch-preset` | 워커 모델 프리셋 전환 |
-| `/subagent-model` | 개별 서브에이전트 모델 변경 |
+| `/lite-triage` | Planning/analysis (plan) |
+| `/lite-implement` | Implementation (build) |
+| `/lite-verify` | Verification (tester) |
+| `/lite-fix` | Fix (fixer) |
+| `/lite-review` | Review (reviewer) |
+| `/lite-auto` | Full automatic loop |
+| `/switch-preset` | Switch worker model preset |
+| `/subagent-model` | Change individual subagent model |
 
 ---
 
-## 외부 호환성
+## External Compatibility
 
-- 이 정책은 외부 스킬/플러그인(예: superpowers)과 공존한다.
-- 스킬의 지시가 이 문서와 충돌할 경우, **사용자의 명시적 지시 > 이 문서 > 스킬 기본값** 순으로 우선한다.
-- 서브에이전트가 `task` 도구로 호출될 때는 `opencode.jsonc`의 `agent.<name>.model` 설정을 따른다.
+- This policy coexists with external skills/plugins (e.g., superpowers).
+- If a skill's instructions conflict with this document, the priority order is: **explicit user instruction > this document > skill defaults**.
+- When subagents are invoked via the `task` tool, they follow the `agent.<name>.model` setting in `opencode.jsonc`.

@@ -6,7 +6,7 @@
   ],
   "agent": {
     "curator": {
-      "model": "openai/gpt-5.4"
+      "model": "deepinfra/openai/gpt-oss-120b"
     },
     "coder": {
       "model": "deepinfra/zai-org/GLM-5"

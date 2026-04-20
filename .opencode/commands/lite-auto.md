@@ -54,7 +54,7 @@ Map these to **official** `tickets.json` `status` values when you update state; 
 ### Step 4 — Build **Delegation Packet** (all worker calls)
 
 Every packet **must** follow `.opencode/schemas/task-packet.schema.json`.
-필수 필드는 스키마를 단일 기준으로 사용하고, 이 문서에는 요약만 유지한다.
+Required fields use the schema as the single source of truth; this document keeps only a summary.
 
 - `packet_version`, `request_id`, `schema_version`
 - `run_id`, `ticket_id`, `worker_role`

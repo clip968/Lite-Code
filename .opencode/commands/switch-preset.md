@@ -3,34 +3,34 @@ description: Switch worker model preset (economy / quality / full / default)
 subtask: false
 ---
 
-사용자가 이 명령을 실행하면, 서브에이전트 모델 프리셋 전환 방법을 안내한다.
+When the user runs this command, guide them to switch subagent model presets.
 
-## 안내 내용
+## Instructions
 
-아래 쉘 명령어를 보여주고 실행 여부를 묻는다.
+Show the following shell commands and ask whether to execute them.
 
-### 프리셋 목록 보기
+### View preset list
 ```bash
 node .opencode/scripts/switch-preset.js --list
 ```
 
-### 프리셋 적용
+### Apply a preset
 ```bash
-# 저비용 모드
+# Low-cost mode
 node .opencode/scripts/switch-preset.js economy
 
-# 균형 모드 (reviewer만 고급)
+# Balanced mode (reviewer only uses a high-end model)
 node .opencode/scripts/switch-preset.js quality
 
-# 최고 품질 모드
+# Maximum quality mode
 node .opencode/scripts/switch-preset.js full
 
-# 기본값 복원 (global default 상속)
+# Restore defaults (inherits global defaults)
 node .opencode/scripts/switch-preset.js default
 ```
 
-## 추가 안내
+## Additional Notes
 
-- 프리셋은 `.opencode/scripts/presets.json`에서 직접 편집하여 커스텀 프리셋을 만들 수 있다.
-- 적용 후 OpenCode를 재시작해야 변경 사항이 반영된다.
-- 개별 에이전트의 모델만 바꾸고 싶으면 `/subagent-model` 명령을 사용한다.
+- You can create custom presets by editing `.opencode/scripts/presets.json` directly.
+- After applying a preset, restart OpenCode for changes to take effect.
+- To change only a single agent's model, use the `/subagent-model` command instead.

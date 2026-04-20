@@ -17,7 +17,7 @@ test("routeTicket returns curator->coder for low context clarity", () => {
   assert.deepEqual(result.sequence, ["curator", "coder"]);
 });
 
-test("routeTicket returns reviewer for review_only", () => {
+test("routeTicket returns curator->reviewer for review_only", () => {
   const result = routeTicket({
     ticketId: "T-2",
     taskType: "review_only",
@@ -28,7 +28,22 @@ test("routeTicket returns reviewer for review_only", () => {
     priorFailureEvidence: false,
     scopeSize: 1,
   });
-  assert.deepEqual(result.sequence, ["reviewer"]);
+  assert.deepEqual(result.sequence, ["curator", "reviewer"]);
+});
+
+test("routeTicket returns curator for exploration tasks", () => {
+  const result = routeTicket({
+    ticketId: "T-EXPLORE",
+    taskType: "exploration",
+    riskLevel: "low",
+    interfaceChange: false,
+    requiresRuntimeVerification: false,
+    contextClarity: "medium",
+    priorFailureEvidence: false,
+    scopeSize: 5,
+  });
+  assert.deepEqual(result.sequence, ["curator"]);
+  assert.equal(result.reason, "exploration_task");
 });
 
 test("requiresReviewer enforces interface change", () => {

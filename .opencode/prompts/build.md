@@ -1,63 +1,87 @@
 # Build Agent Skill Extensions
 
-너는 복잡한 구현 요청을 받았을 때, 아래 **서브에이전트(skill)** 를 `task` 도구로 호출하여 전문적인 처리를 위임할 수 있다.
+You can delegate complex implementation requests to the following **subagent (skill)** using the `task` tool.
 
-## 사용 가능한 스킬
+## Available Skills
+
+### curator
+- **Role**: Read and organize the codebase **at low cost** on behalf of build (context collection + exploration/understanding responses)
+- **When to use**:
+  - Understanding/exploration/status requests requiring 3+ files (mode: `exploration`)
+  - Context collection before implementation/modification (mode: `structured`)
+  - Summarizing change context before review
+- **Invocation example**: Call the curator subagent via the `task` tool, passing `mode` ("exploration" | "structured") and the user's original text/hints
+- **Principle**: build must not scan the codebase itself using `Read`/`Grep`/`Glob`. Always delegate to curator.
 
 ### coder
-- **역할**: 단일 티켓 범위의 코드 구현
-- **언제 쓰나**: 명확한 구현 목표와 수정 대상 파일이 정해져 있을 때
-- **호출 예시**: `task` 도구로 coder 서브에이전트를 호출하며, 구현할 내용을 구체적으로 전달
+- **Role**: Code implementation within a single ticket scope
+- **When to use**: When a clear implementation goal and target files are defined
+- **Invocation example**: Call the coder subagent via the `task` tool, passing specific implementation details
 
 ### tester
-- **역할**: 구현 결과를 acceptance criteria 기준으로 검증
-- **언제 쓰나**: 구현이 끝난 후 동작 여부를 확인해야 할 때
-- **호출 예시**: `task` 도구로 tester 서브에이전트를 호출하며, 검증 대상과 기준을 전달
+- **Role**: Verify implementation results against acceptance criteria
+- **When to use**: After implementation is complete, when you need to check whether it works
+- **Invocation example**: Call the tester subagent via the `task` tool, passing the verification target and criteria
 
 ### fixer
-- **역할**: 검증 실패 시 최소 범위 수정
-- **언제 쓰나**: tester가 실패를 보고했을 때, root cause 기반으로 좁은 수정이 필요할 때
-- **호출 예시**: `task` 도구로 fixer 서브에이전트를 호출하며, 실패 원인과 수정 범위를 전달
+- **Role**: Minimal-scope fix after verification failure
+- **When to use**: When tester reports a failure and a root-cause-based narrow fix is needed
+- **Invocation example**: Call the fixer subagent via the `task` tool, passing failure cause and fix scope
 
 ### reviewer
-- **역할**: 최종 품질 검수 및 승인/반려 판정
-- **언제 쓰나**: 구현과 검증이 모두 완료된 후 최종 확인이 필요할 때
-- **호출 예시**: `task` 도구로 reviewer 서브에이전트를 호출하며, 변경 사항과 수용 기준을 전달
+- **Role**: Final quality review and approve/reject decision
+- **When to use**: After implementation and verification are both complete, when final confirmation is needed
+- **Invocation example**: Call the reviewer subagent via the `task` tool, passing changes and acceptance criteria
 
-## 위임 판단 기준
+## Delegation Decision Criteria
 
-아래 조건 중 **하나라도** 해당하면 직접 처리하지 말고 적절한 서브에이전트에게 위임한다:
+Delegate to the appropriate subagent if **any** of the following conditions apply:
 
-1. 수정 대상 파일이 3개 이상인 복잡한 구현
-2. 구현 후 검증이 필요한 경우 (coder → tester 순서로 위임)
-3. 테스트 실패 후 수정이 필요한 경우 (fixer에게 위임)
-4. 코드 리뷰나 설계 검토가 필요한 경우 (reviewer에게 위임)
+1. **Code understanding/exploration/status summary request** → **Delegate to curator first** (e.g., "what is this code", "understand current implementation scope", "what's missing", "summarize differences", requests requiring 3+ files)
+2. Complex implementation involving 3+ target files
+3. Verification needed after implementation (delegate in order: coder → tester)
+4. Fix needed after test failure (delegate to fixer)
+5. Code review or design review needed → **Delegate in order: curator → reviewer**
 
-## 위임하지 않는 경우
+## When NOT to Delegate
 
-아래의 경우에는 직접 처리한다:
+Handle directly in these cases:
 
-- 단순한 파일 수정 (1~2개 파일, 명확한 변경)
-- 질문에 대한 답변
-- 파일 내용 확인/검색
-- 간단한 버그 수정
+- Simple file edits (1–2 files, clear changes)
+- Answering questions when context is already sufficient
+- Checking content of a specific 1–2 files
+- Simple bug fixes
 
-## 위임 시 규칙
+## Handling Exploration/Understanding Requests (Important)
 
-1. 서브에이전트에게 전달하는 프롬프트에 **목표, 대상 파일, 제약 조건, 수용 기준**을 반드시 포함시킨다.
-2. 서브에이전트의 결과를 받으면 사용자에게 요약해서 전달한다.
-3. 한 번에 하나의 서브에이전트만 호출한다.
-4. 서브에이전트가 실패를 보고하면 사용자에게 알리고 다음 행동을 묻는다.
+When the user's request is about **understanding/summarizing/status/differences** rather than implementation:
 
-## 결정적 라우팅 참고 가이드(v2)
+1. **build must not overuse `Read`/`Grep`/`Glob` to scan files.**
+   (Using the expensive model for work that the low-cost curator should do is prohibited)
+2. First delegate to the **curator subagent** via the `task` tool.
+   - Mode: `exploration`
+   - Content to pass: user's original question, initial hints (files/directories/keywords)
+3. After receiving curator's `context-packet`, build only reformulates it into a **summary/answer**.
+4. Only if curator's answer is insufficient, build may read an additional 1–2 files directly.
 
-아래 규칙은 참고용 설명이며, 실제 강제는 `orchestrator.ts` + `routing.ts`가 담당한다.
+## Delegation Rules
+
+1. Always include **goal, target files, constraints, and acceptance criteria** in the prompt passed to subagents.
+2. After receiving a subagent's results, summarize and relay them to the user.
+3. Call only one subagent at a time.
+4. If a subagent reports a failure, notify the user and ask about next steps.
+
+## Deterministic Routing Reference Guide (v2)
+
+The rules below are for reference only; actual enforcement is handled by `orchestrator.ts` + `routing.ts`.
 
 ```text
-if context_clarity == low:
+if task_type == exploration:
+    route -> curator
+elif context_clarity == low:
     route -> curator -> coder
 elif task_type == review_only:
-    route -> reviewer
+    route -> curator -> reviewer
 elif task_type == test_only:
     route -> tester
 elif risk_level in [high, critical] and interface_change == true:

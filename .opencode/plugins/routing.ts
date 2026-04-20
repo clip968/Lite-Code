@@ -1,6 +1,12 @@
 export interface TicketMeta {
   ticketId: string;
-  taskType: "bugfix" | "feature" | "test_only" | "review_only" | "refactor";
+  taskType:
+    | "bugfix"
+    | "feature"
+    | "test_only"
+    | "review_only"
+    | "refactor"
+    | "exploration";
   riskLevel: "low" | "medium" | "high" | "critical";
   interfaceChange: boolean;
   requiresRuntimeVerification: boolean;
@@ -19,11 +25,14 @@ export function shouldCallCurator(meta: TicketMeta): boolean {
 }
 
 export function routeTicket(meta: TicketMeta): { sequence: WorkerRole[]; reason: string } {
+  if (meta.taskType === "exploration") {
+    return { sequence: ["curator"], reason: "exploration_task" };
+  }
   if (meta.contextClarity === "low") {
     return { sequence: ["curator", "coder"], reason: "context_clarity_low" };
   }
   if (meta.taskType === "review_only") {
-    return { sequence: ["reviewer"], reason: "review_only_task" };
+    return { sequence: ["curator", "reviewer"], reason: "review_only_task" };
   }
   if (meta.taskType === "test_only") {
     return { sequence: ["tester"], reason: "test_only_task" };
@@ -55,7 +64,7 @@ export function parseTicketMeta(args?: Record<string, unknown>): TicketMeta {
 
   return {
     ticketId: typeof args?.ticket_id === "string" ? args.ticket_id : "UNKNOWN",
-    taskType: ["bugfix", "feature", "test_only", "review_only", "refactor"].includes(task)
+    taskType: ["bugfix", "feature", "test_only", "review_only", "refactor", "exploration"].includes(task)
       ? (task as TicketMeta["taskType"])
       : "feature",
     riskLevel: ["low", "medium", "high", "critical"].includes(risk)
