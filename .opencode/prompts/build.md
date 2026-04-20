@@ -68,7 +68,7 @@ When the user's request is about **understanding/summarizing/status/differences*
 
 ### Pre-delegation Decision Gate (mandatory)
 
-Before any subagent invocation, explicitly decide and record execution mode: `SEQUENTIAL` or `PARALLEL`.
+Before any subagent invocation, explicitly decide and record execution mode: `SEQUENTIAL` or `PARALLEL`. This decision is for internal reasoning/orchestration only and should not be surfaced in user-visible output unless the user explicitly asks for it.
 
 Use this checklist in order:
 

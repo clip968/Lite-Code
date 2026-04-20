@@ -66,7 +66,7 @@ When the user's request involves "understanding / explaining / status / analysis
 
 ### Mandatory pre-delegation decision gate
 
-Before `build` invokes any subagent, it must explicitly decide execution mode: `SEQUENTIAL` or `PARALLEL`.
+Before `build` invokes any subagent, it must explicitly decide execution mode: `SEQUENTIAL` or `PARALLEL`. This decision is for internal reasoning/orchestration only and should not be surfaced in user-visible output unless the user explicitly asks for it.
 
 Required gate checks (in order):
 1. **Dependency check** — confirm there is no dependency edge if considering parallel execution.

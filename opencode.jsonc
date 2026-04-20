@@ -4,6 +4,9 @@
   "instructions": [
     ".opencode/instructions/lite-code.md"
   ],
+  "plugin": [
+    "superpowers@git+https://github.com/obra/superpowers.git"
+  ],
   "agent": {
     "curator": {
       "model": "deepinfra/MiniMaxAI/MiniMax-M2.5"
