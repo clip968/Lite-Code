@@ -1,0 +1,8 @@
+{
+  "mini": "openai/gpt-5.4-mini",
+  "smart": "openai/gpt-5.4",
+  "reviewer-cx": "openai/gpt-5.4",
+  "fixer-glm": "deepinfra/zai-org/GLM-5.1",
+  "tester-gemini": "GitHubCopilot/Gemini-3.1-preview",
+  "coder-mini": "openai/gpt-5.4-mini"
+}

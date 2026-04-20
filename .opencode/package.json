@@ -1,0 +1,10 @@
+{
+  "name": "lite-code-opencode",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lite-Code OpenCode 설정 디렉터리. 플러그인/명령/에이전트/지시문을 포함합니다.",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.4.6"
+  }
+}

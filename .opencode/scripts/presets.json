@@ -2,36 +2,50 @@
   "economy": {
     "description": "모든 워커가 저비용 모델 사용 (비용 절약)",
     "agents": {
-      "coder":    { "model": "openai/gpt-5.4-mini" },
-      "tester":   { "model": "openai/gpt-5.4-mini" },
-      "fixer":    { "model": "openai/gpt-5.4-mini" },
-      "reviewer": { "model": "openai/gpt-5.4-mini" }
+      "curator": { "model": "mini" },
+      "coder": { "model": "mini" },
+      "tester": { "model": "mini" },
+      "fixer": { "model": "mini" },
+      "reviewer": { "model": "mini" }
     }
   },
   "quality": {
     "description": "reviewer만 고급 모델, 나머지는 저비용 (균형)",
     "agents": {
-      "coder":    { "model": "openai/gpt-5.4-mini" },
-      "tester":   { "model": "openai/gpt-5.4-mini" },
-      "fixer":    { "model": "openai/gpt-5.4-mini" },
-      "reviewer": { "model": "openai/gpt-5.4" }
+      "curator": { "model": "mini" },
+      "coder": { "model": "mini" },
+      "tester": { "model": "mini" },
+      "fixer": { "model": "mini" },
+      "reviewer": { "model": "smart" }
     }
   },
   "full": {
     "description": "모든 워커가 고급 모델 사용 (최고 품질)",
     "agents": {
-      "coder":    { "model": "openai/gpt-5.4" },
-      "tester":   { "model": "openai/gpt-5.4" },
-      "fixer":    { "model": "openai/gpt-5.4" },
-      "reviewer": { "model": "openai/gpt-5.4" }
+      "curator": { "model": "smart" },
+      "coder": { "model": "smart" },
+      "tester": { "model": "smart" },
+      "fixer": { "model": "smart" },
+      "reviewer": { "model": "smart" }
     }
   },
   "default": {
-    "description": "모든 워커의 명시적 모델 제거 (global default 상속)",
+    "description": "opencode.jsonc 기본 역할별 매핑 (팀 공용 권장값)",
     "agents": {
-      "coder":    { "model": null },
-      "tester":   { "model": null },
-      "fixer":    { "model": null },
+      "curator": { "model": "mini" },
+      "coder": { "model": "mini" },
+      "tester": { "model": "tester-gemini" },
+      "fixer": { "model": "fixer-glm" },
+      "reviewer": { "model": "reviewer-cx" }
+    }
+  },
+  "inherit": {
+    "description": "모든 워커의 명시적 모델 제거 (전역 config 또는 최상위 model 상속)",
+    "agents": {
+      "curator": { "model": null },
+      "coder": { "model": null },
+      "tester": { "model": null },
+      "fixer": { "model": null },
       "reviewer": { "model": null }
     }
   }
