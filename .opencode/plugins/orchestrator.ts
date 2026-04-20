@@ -14,6 +14,9 @@ type RunStatus =
 interface RunLogEntry {
   runId: string;
   ticketId: string;
+  parallel_group_id: string | null;
+  parent_parallel_group_id: string | null;
+  sibling_workers: string[];
   stage: string;
   command: string;
   agent: string;
@@ -150,6 +153,9 @@ function makeEntry(command: string, args?: Record<string, unknown>): RunLogEntry
   return {
     runId: `run-${new Date().toISOString().slice(0, 10)}-${randomId(6)}`,
     ticketId: detectTicketId(args),
+    parallel_group_id: null,
+    parent_parallel_group_id: null,
+    sibling_workers: [],
     stage: detectStage(command),
     command,
     agent: detectAgent(command),
@@ -181,6 +187,9 @@ function bootstrapLog(): RunLogFile {
     fields: {
       runId: "Unique identifier for a workflow run",
       ticketId: "Target ticket ID",
+      parallel_group_id: "Parallel execution group identifier (null when sequential)",
+      parent_parallel_group_id: "Optional parent parallel group identifier",
+      sibling_workers: "Expected sibling workers in the same parallel group",
       stage: "Workflow stage label",
       command: "Executed command",
       agent: "Effective agent used",
@@ -240,13 +249,24 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
     const parsed = await readRunLog();
     const entries = Array.isArray(parsed.entries) ? parsed.entries : [];
 
+    const prompt = typeof args?.prompt === "string" ? args.prompt : "";
+    const { packet, errors } = parseJsonPacketFromPrompt(prompt);
+    const packetRunId = typeof packet?.run_id === "string" ? packet.run_id : null;
+
     if (!status) {
       const entry = makeEntry(command, args);
-      const prompt = typeof args?.prompt === "string" ? args.prompt : "";
-      const { packet, errors } = parseJsonPacketFromPrompt(prompt);
 
       if (packet) {
+        entry.runId = packetRunId ?? entry.runId;
+        entry.ticketId = typeof packet.ticket_id === "string" ? packet.ticket_id : entry.ticketId;
         entry.worker_role = typeof packet.worker_role === "string" ? packet.worker_role : "unknown";
+        entry.parallel_group_id = typeof packet.parallel_group_id === "string" ? packet.parallel_group_id : null;
+        entry.parent_parallel_group_id =
+          typeof packet.parent_parallel_group_id === "string" ? packet.parent_parallel_group_id : null;
+        entry.sibling_workers = Array.isArray(packet.sibling_workers)
+          ? packet.sibling_workers.filter((v): v is string => typeof v === "string")
+          : [];
+        entry.notes.parallelExecution = entry.parallel_group_id !== null;
       }
       if (errors.length > 0) {
         entry.notes.taskPacketValid = false;
@@ -273,14 +293,37 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
 
       entries.push(entry);
     } else {
+      let updated = false;
       for (let i = entries.length - 1; i >= 0; i -= 1) {
-        if (entries[i].command === command && entries[i].status === "STARTED") {
+        const sameRun = packetRunId ? entries[i].runId === packetRunId : entries[i].command === command;
+        if (sameRun && entries[i].status === "STARTED") {
           entries[i].status = status;
           entries[i].timestamp = nowIso();
           if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") entries[i].nextAction = "/lite-fix";
           if (status === "CHANGES_REQUESTED") entries[i].nextAction = "/lite-implement";
+          updated = true;
           break;
         }
+      }
+      if (!updated && packetRunId) {
+        const entry = makeEntry(command, args);
+        entry.runId = packetRunId;
+        entry.status = status;
+        entry.timestamp = nowIso();
+        entry.notes.missingStartRecovered = true;
+        if (packet) {
+          entry.ticketId = typeof packet.ticket_id === "string" ? packet.ticket_id : entry.ticketId;
+          entry.worker_role = typeof packet.worker_role === "string" ? packet.worker_role : entry.worker_role;
+          entry.parallel_group_id = typeof packet.parallel_group_id === "string" ? packet.parallel_group_id : null;
+          entry.parent_parallel_group_id =
+            typeof packet.parent_parallel_group_id === "string" ? packet.parent_parallel_group_id : null;
+          entry.sibling_workers = Array.isArray(packet.sibling_workers)
+            ? packet.sibling_workers.filter((v): v is string => typeof v === "string")
+            : [];
+        }
+        if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") entry.nextAction = "/lite-fix";
+        if (status === "CHANGES_REQUESTED") entry.nextAction = "/lite-implement";
+        entries.push(entry);
       }
     }
 

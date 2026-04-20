@@ -64,6 +64,18 @@ When the user's request involves "understanding / explaining / status / analysis
 
 ## Delegation Rules
 
+### Mandatory pre-delegation decision gate
+
+Before `build` invokes any subagent, it must explicitly decide execution mode: `SEQUENTIAL` or `PARALLEL`.
+
+Required gate checks (in order):
+1. **Dependency check** — confirm there is no dependency edge if considering parallel execution.
+2. **Scope-overlap check** — confirm there is no read/write overlap (including file overlap) across packets.
+3. **Merge plan for parallel branches** — define how outputs are reconciled and what to do if one branch fails or is malformed.
+4. **Fallback rule** — if any check is uncertain or cannot be verified safely, default to `SEQUENTIAL`.
+
+No delegation should start until this decision gate is completed.
+
 ### When build should call a subagent
 - **Code understanding / exploration / status summary (requests requiring 3+ file reads)** → `curator` (mode: exploration)
 - Complex implementation involving 3+ target files → `curator` → `coder`
@@ -80,10 +92,23 @@ When the user's request involves "understanding / explaining / status / analysis
 > **Prohibition:** `build` must not broadly scan the codebase using `Read`/`Grep`/`Glob` while running an expensive model. This work must always be delegated to curator.
 
 ### Mandatory rules for delegation
-1. Call only one subagent at a time.
-2. Include **goal, target files, constraints, and acceptance criteria** in the delegation prompt.
-3. Direct calls between subagents are prohibited (must go through build).
-4. If a subagent reports a failure, notify the user and ask about next steps.
+1. Parallel delegation is allowed **only** for independent work packets (no read/write overlap and no dependency edge).
+2. Dependent chains must stay sequential (for example: `coder → tester`, `tester FAIL → fixer`, `reviewer` after implementation/verification evidence).
+3. Include **goal, target files, constraints, and acceptance criteria** in every delegation prompt.
+4. Direct calls between subagents are prohibited (must go through build).
+5. If a subagent reports a failure, notify the user and ask about next steps.
+6. All instructions sent to subagents must be in English. Do not send subagent prompts in any other language unless the user explicitly instructs you to do so.
+
+### Parallel-safe combinations (policy)
+
+- ✅ Allowed in parallel:
+  - multiple `curator` runs on non-overlapping file scopes
+  - independent tickets with isolated file scopes (outside single-ticket loops)
+  - other independent worker packets with explicit non-overlapping scopes
+- ⛔ Must remain sequential:
+  - `coder` before `tester` for the same change scope
+  - `fixer` only after a `tester` failure for that scope
+  - `reviewer` only after required upstream worker outputs are complete
 
 ---
 

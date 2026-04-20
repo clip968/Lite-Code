@@ -6,10 +6,10 @@
   ],
   "agent": {
     "curator": {
-      "model": "deepinfra/openai/gpt-oss-120b"
+      "model": "deepinfra/MiniMaxAI/MiniMax-M2.5"
     },
     "coder": {
-      "model": "deepinfra/zai-org/GLM-5"
+      "model": "github-copilot/gpt-5.3-codex"
     },
     "tester": {
       "model": "github-copilot/gemini-3.1-pro-preview"

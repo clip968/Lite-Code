@@ -66,10 +66,29 @@ When the user's request is about **understanding/summarizing/status/differences*
 
 ## Delegation Rules
 
+### Pre-delegation Decision Gate (mandatory)
+
+Before any subagent invocation, explicitly decide and record execution mode: `SEQUENTIAL` or `PARALLEL`.
+
+Use this checklist in order:
+
+1. **Dependency check** — Is there any dependency edge between packets/steps?
+2. **Scope-overlap check** — Is there any read/write overlap or file overlap?
+3. **Merge plan (parallel only)** — If parallel, define how branch outputs will be reconciled and what happens if one branch fails.
+4. **Uncertainty fallback** — If any check is unclear, choose `SEQUENTIAL`.
+
+Do not delegate until this gate is completed.
+
 1. Always include **goal, target files, constraints, and acceptance criteria** in the prompt passed to subagents.
 2. After receiving a subagent's results, summarize and relay them to the user.
-3. Call only one subagent at a time.
-4. If a subagent reports a failure, notify the user and ask about next steps.
+3. Parallel subagent calls are allowed only when work packets are independent (no file overlap and no dependency edge).
+4. Keep dependent chains sequential (`coder` before `tester`, `fixer` after `tester` failure, `reviewer` after required evidence).
+5. If a subagent reports a failure, notify the user and ask about next steps.
+
+### Parallel-safe execution quick guide
+
+- ✅ Parallel-safe: multiple `curator` packets on non-overlapping scope, independent tickets with isolated files.
+- ⛔ Sequential-only: `coder → tester`, `tester FAIL → fixer`, `reviewer` after upstream outputs for the same scope.
 
 ## Deterministic Routing Reference Guide (v2)
 
