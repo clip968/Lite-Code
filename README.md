@@ -4,7 +4,7 @@ Lite-Code is a lightweight orchestration and subagent model management system bu
 
 ## Key Features
 
-- **Intelligent delegation (skill dispatch)**: The main agent (`build`) evaluates task complexity and automatically delegates work to the `curator`, `coder`, `tester`, `fixer`, and `reviewer` subagents.
+- **Intelligent delegation (task-based dispatch)**: The main agent (`build`) evaluates task complexity and automatically delegates work to the `curator`, `coder`, `tester`, `fixer`, and `reviewer` subagents via the task tool.
 - **Curator-first knowledge reuse (Reduced V1)**: One sequential `curator` preflight can produce compact reusable knowledge that the manager attaches to downstream `coder` / `reviewer` packets (`knowledge_refs`, `knowledge_summary`, `knowledge_status`) so workers consult it before broad repository reads.
 - **Deterministic staleness rule**: The manager resolves `knowledge_status` (`fresh | stale | unknown | none`) by comparing each source file's git commit time against the curator's `last_verified_at`, so reviewers can explicitly reject on `stale_knowledge`.
 - **Model preset management**: Instantly switch the entire set of subagent models depending on your working mode, such as cost-saving or high-quality execution.
@@ -128,7 +128,7 @@ Use this when you want to fine-tune the model for a specific agent only.
 | `.opencode/instructions/lite-code.md` | Shared Lite-Code orchestration policy (reusable), including Reduced V1 knowledge preflight rules |
 | `.opencode/commands/lite-auto.md` | Auto orchestration command; defines the sequential curator preflight step (Step 4.5) |
 | `.opencode/agents/` | Agent definition files (`build`, `curator`, `coder`, `tester`, `fixer`, `reviewer`) loaded automatically by OpenCode |
-| `.opencode/schemas/` | Packet and output JSON schemas (context / task / reviewer) including optional `knowledge_*` fields |
+| `.opencode/schemas/` | Packet and output JSON schemas (context / task / reviewer) defining `allowed_files` (canonical file-scope) and optional `knowledge_*` fields |
 | `.opencode/plugins/` | Local plugins, including `orchestrator.ts` which records Reduced V1 metric fields in `run-log.json` |
 | `.opencode/scripts/` | Model preset management scripts and data |
 | `.opencode/commands/` | Custom commands such as `/switch-preset` and `/subagent-model` |
@@ -143,7 +143,7 @@ Use this when you want to fine-tune the model for a specific agent only.
 Reduced V1 adds a minimal knowledge-reuse loop on top of the existing role-based delegation. It is designed to prove reuse value before scaling to parallel fan-out or automated wiki writes.
 
 - **Trigger**: When context clarity is low, scope is likely broad (3+ reads), or review sensitivity is high, the manager runs **one sequential `curator` preflight** per ticket.
-- **Curator output** (optional extensions to `.opencode/schemas/context-packet.schema.json`):
+- **Curator output** (optional fields defined in `.opencode/schemas/context-packet.schema.json`):
   - `knowledge_candidates` — up to 3 compact summaries, each pointing to an existing `wiki/concepts/*.md` via `doc_ref`, with `source_files`, ISO-8601 `last_verified_at`, and `confidence`.
   - `knowledge_gaps` — short strings describing unresolved context gaps.
 - **Manager responsibility**:

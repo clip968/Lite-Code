@@ -40,7 +40,7 @@ When the user's request involves "understanding / explaining / status / analysis
 
 1. Separate high-level judgment (planning/review) from execution (implementation/verification/fixing).
 2. Minimize expensive model usage to control costs.
-3. Allow `build` to directly invoke subagents as **skills** and delegate work.
+3. Allow `build` to directly delegate work to subagents via the **task tool**.
 
 ---
 
@@ -95,7 +95,7 @@ No delegation should start until this decision gate is completed.
 ### Mandatory rules for delegation
 1. Parallel delegation is allowed **only** for independent work packets (no read/write overlap and no dependency edge).
 2. Dependent chains must stay sequential (for example: `coder → tester`, `tester FAIL → fixer`, `reviewer` after implementation/verification evidence).
-3. Include **goal, target files, constraints, and acceptance criteria** in every delegation prompt.
+3. Include **goal, `allowed_files`, constraints, and acceptance criteria** in every delegation prompt.
 4. Direct calls between subagents are prohibited (must go through build).
 5. If a subagent reports a failure, notify the user and ask about next steps.
 6. All instructions sent to subagents must be in English. Do not send subagent prompts in any other language unless the user explicitly instructs you to do so.
@@ -103,7 +103,7 @@ No delegation should start until this decision gate is completed.
 ### Knowledge preflight policy (Reduced V1)
 - For implementation or review tasks likely to require broad reads (for example low context clarity, review-sensitive work, or expected 3+ repository reads), run **one sequential `curator` preflight** before delegating to `coder` or `reviewer`.
 - Reduced V1 allows **at most one curator preflight per ticket**. If knowledge becomes stale mid-loop, do not run refresh preflight in the same ticket.
-- Preflight output may be attached to downstream packets via optional fields: `knowledge_refs`, `knowledge_summary`, `knowledge_status`.
+- Preflight output is attached to downstream packets via optional fields defined in `.opencode/schemas/task-packet.schema.json`: `knowledge_refs`, `knowledge_summary`, `knowledge_status`.
 - `knowledge_status` is manager-resolved (`fresh | stale | unknown | none`), not worker-guessed.
 - Do not perform runtime wiki body writes in Reduced V1. `knowledge_refs` are read references to existing concept documents only.
 - Note: `wiki/concepts/*.md` is the current Lite-Code convention for concept documents. Repository adapters may map this to an equivalent concept-document path.

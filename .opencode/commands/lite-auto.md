@@ -72,39 +72,22 @@ Run this step before delegating to `coder` or `reviewer` when context is low, sc
 Rules:
 - Reduced V1 allows **at most one curator preflight per ticket**.
 - This preflight is **sequential only** in Reduced V1.
-- Call `curator` in `structured` mode and validate output against `.opencode/schemas/context-packet.schema.json`.
-- If `knowledge_candidates` exist, validate candidate shape and constraints:
-  - each `doc_ref` must point to an existing `wiki/concepts/*.md`
-  - each `summary` must be compact (<= 600 chars)
-  - each candidate must include `source_files`, `last_verified_at`, `confidence`
-- Invalid `doc_ref` candidates are dropped individually; do not fail the full packet for one invalid candidate.
-- Resolve candidate freshness using git timestamps from each source file:
-  - command: `git log -1 --format=%cI -- <path>`
-  - `fresh`: all source file commit times <= `last_verified_at`
-  - `stale`: any source file commit time > `last_verified_at`
-  - `unknown`: git/file resolution fails, source file list is empty, or comparison is unsafe
-- Aggregate packet-level `knowledge_status` conservatively:
-  - `stale` if any attached candidate is stale
-  - else `unknown` if any attached candidate is unknown
-  - else `fresh` if at least one attached candidate is fresh
-  - else `none`
-- Attach compact downstream knowledge fields only when useful:
-  - `knowledge_refs`
-  - `knowledge_summary` (<= 600 chars; manager-composed)
-  - `knowledge_status`
-- If no usable candidates remain, set `knowledge_refs: []` and `knowledge_status: "none"` (summary optional).
+- Call `curator` in `structured` mode and validate the returned preflight artifact against `.opencode/schemas/task-packet.schema.json` as the downstream packet shape, without implying the curator emitted the final delegation packet.
+- Treat `knowledge_refs`, `knowledge_summary`, and manager-resolved `knowledge_status` as existing Reduced V1 fields, not planned additions.
+- `knowledge_status` is authoritative only because the manager resolves it from the preflight context; do not delegate freshness ownership to runtime routing/plugins or recompute it here.
+- If no usable knowledge is attached, set `knowledge_refs: []` and `knowledge_status: "none"` (summary optional).
 - Do not perform runtime wiki body writes in Reduced V1.
 
 ### Step 5 — Build **Delegation Packet** (all worker calls)
 
 Every packet **must** follow `.opencode/schemas/task-packet.schema.json`.
-Required fields use the schema as the single source of truth; this document keeps only a summary.
+The schema is the single source of truth; this document keeps only a summary, and the manager builds the final packet from the ticket context plus any curator preflight artifact.
 
 - `packet_version`, `request_id`, `schema_version`
 - `run_id`, `ticket_id`, `worker_role`
 - `goal`, `allowed_files`, `constraints`, `acceptance_criteria`, `non_scope`
 - `risk_level`, `iteration`, `mode`
-- optional: `context_refs`, `test_requirements`, `budget_hint`, `forbidden_files`, `knowledge_refs`, `knowledge_summary`, `knowledge_status`
+- optional: `context_refs`, `test_requirements`, `budget_hint`, `knowledge_refs`, `knowledge_summary`, manager-resolved `knowledge_status`
 
 **Size:** no full transcripts; no whole-repo dump; prior step **summary** only.
 

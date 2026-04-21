@@ -16,9 +16,9 @@ Evaluate one implemented ticket and decide if it is acceptable based on evidence
 - In **manual** mode, `/lite-review` typically invokes you for the final gate.
 - In **auto** mode (`/lite-auto`), the **manager** may finalize when risk is low; the manager **must** delegate to you (subagent) when **mandatory triggers** apply (e.g. `AGENTS.md`, `opencode.jsonc`, `.opencode/plugins/**`, `.opencode/agents/**`, borderline verify evidence, low confidence, user-requested review). See `docs/stage5-lite-supervisor-implementation-spec.md` §10.4.
 
-When invoked, you may receive a **manager packet** (`files_in_scope`, `read_context`, `input_artifacts`, verify/fix summaries, `expected_output_contract`, `mode: auto`). You are **read-only** — do not implement fixes.
+When invoked, you may receive a **manager packet** (`allowed_files`, `input_artifacts`, verify/fix summaries, `mode: auto`). You are **read-only** — do not implement fixes.
 
-When present, treat `knowledge_refs`, `knowledge_summary`, and `knowledge_status` as manager-provided context fields for Reduced V1.
+Packet knowledge fields (`knowledge_refs`, `knowledge_summary`, `knowledge_status`) are manager-provided Reduced V1 context. Treat `knowledge_status` as authoritative — never reinterpret or re-derive it.
 
 ## Required Decision Output (always use this exact structure)
 

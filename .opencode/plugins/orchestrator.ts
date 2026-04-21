@@ -1,4 +1,4 @@
-import { parseTicketMeta, routeTicket, type WorkerRole } from "./routing.ts";
+import { parseTicketMeta, routeTicket, type WorkerRole, classifyKnowledgeFreshness, type KnowledgeFreshness } from "./routing.ts";
 import { validateHistory } from "./state-machine.ts";
 
 type RunStatus =
@@ -97,6 +97,41 @@ function randomId(len = 6) {
 export function detectCommand(args?: Record<string, unknown>) {
   const cmd = typeof args?.command === "string" ? args.command : "";
   return cmd || "unknown";
+}
+
+/**
+ * Reduced V1: Resolve knowledge_status for an entry using centralized freshness classification.
+ * The caller must pass ticket-level preflight context (actual curator preflight), not generic role usage.
+ * Uses classifyKnowledgeFreshness from routing.ts — never renames existing metric fields.
+ */
+export function resolveKnowledgeStatus(input: {
+  workerRole: string;
+  packet: Record<string, unknown>;
+  preflightUsed: boolean;
+  knowledgeRefsCount?: number;
+}): KnowledgeFreshness {
+  const knowledgeRefsCount =
+    typeof input.knowledgeRefsCount === "number"
+      ? input.knowledgeRefsCount
+      : Array.isArray(input.packet?.knowledge_refs)
+        ? (input.packet.knowledge_refs as unknown[]).filter((v): v is string => typeof v === "string").length
+        : 0;
+  const knowledgeStatusFromPacket =
+    typeof input.packet?.knowledge_status === "string" ? input.packet.knowledge_status : undefined;
+
+  const freshness = classifyKnowledgeFreshness({
+    preflightUsed: input.preflightUsed,
+    knowledgeRefsCount,
+    knowledgeStatusFromPacket,
+  });
+
+  // Only reviewer records knowledge_status_at_review; others default to "none"
+  if (input.workerRole === "reviewer") return freshness;
+  return "none";
+}
+
+function ticketHasCuratorPreflight(entries: RunLogEntry[], ticketId: string) {
+  return entries.some((entry) => entry.ticketId === ticketId && entry.knowledge_preflight_used);
 }
 
 function detectTicketId(args?: Record<string, unknown>) {
@@ -214,9 +249,9 @@ function bootstrapLog(): RunLogFile {
       handoff_count: "Cumulative handoff count",
       scope_violation: "Whether scope violation was observed",
       first_pass: "Whether ticket passed without fixer loop",
-      knowledge_preflight_used: "Whether Reduced V1 sequential curator knowledge preflight was used",
+      knowledge_preflight_used: "Whether this ticket run used an actual curator preflight (ticket-level, not refs-only usage)",
       knowledge_refs_attached_count: "Count of knowledge_refs attached to the worker packet",
-      knowledge_status_at_review: "Knowledge status observed at review time (fresh|stale|unknown|none)",
+      knowledge_status_at_review: "Knowledge status observed at review time from packet status or ticket preflight context",
       ticket_cycle_ms: "Elapsed milliseconds from first started entry to terminal update within a ticket run",
       notes: "Structured routing/validation diagnostics",
     },
@@ -283,7 +318,7 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
           ? packet.knowledge_refs.filter((v): v is string => typeof v === "string")
           : [];
         entry.knowledge_refs_attached_count = knowledgeRefs.length;
-        entry.knowledge_preflight_used = entry.worker_role === "curator" || knowledgeRefs.length > 0;
+        entry.knowledge_preflight_used = entry.worker_role === "curator";
       }
       if (errors.length > 0) {
         entry.notes.taskPacketValid = false;
@@ -293,7 +328,12 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
       }
 
       const meta = parseTicketMeta({ ...(args ?? {}), ...(packet ?? {}) });
-      const expected = routeTicket(meta);
+      // Reduced V1: count actual curator preflights (not refs-only usage) to enforce max-one rule
+      const preflightCount = entries.filter(
+        (e) => e.ticketId === entry.ticketId && e.knowledge_preflight_used,
+      ).length;
+      entry.notes.preflightCount = preflightCount;
+      const expected = routeTicket(meta, preflightCount);
       const actualWorker =
         (typeof args?.agent === "string" ? args.agent : undefined) ??
         (typeof packet?.worker_role === "string" ? packet.worker_role : "unknown");
@@ -319,21 +359,16 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
           entries[i].timestamp = nowIso();
           if (packet) {
             const knowledgeRefs = Array.isArray(packet.knowledge_refs)
-              ? packet.knowledge_refs.filter((v): v is string => typeof v === "string")
-              : [];
+            ? packet.knowledge_refs.filter((v): v is string => typeof v === "string")
+            : [];
             entries[i].knowledge_refs_attached_count = knowledgeRefs.length;
-            entries[i].knowledge_preflight_used = entries[i].worker_role === "curator" || knowledgeRefs.length > 0;
-            const packetKnowledgeStatus =
-              typeof packet.knowledge_status === "string" ? packet.knowledge_status : null;
-            if (
-              entries[i].worker_role === "reviewer" &&
-              (packetKnowledgeStatus === "fresh" ||
-                packetKnowledgeStatus === "stale" ||
-                packetKnowledgeStatus === "unknown" ||
-                packetKnowledgeStatus === "none")
-            ) {
-              entries[i].knowledge_status_at_review = packetKnowledgeStatus;
-            }
+            entries[i].knowledge_preflight_used = entries[i].worker_role === "curator";
+            const ticketPreflightUsed = ticketHasCuratorPreflight(entries, entries[i].ticketId);
+            entries[i].knowledge_status_at_review = resolveKnowledgeStatus({
+              workerRole: entries[i].worker_role,
+              packet,
+              preflightUsed: ticketPreflightUsed,
+            });
           }
           if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") entries[i].nextAction = "/lite-fix";
           if (status === "CHANGES_REQUESTED") entries[i].nextAction = "/lite-implement";
@@ -365,17 +400,13 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
             ? packet.knowledge_refs.filter((v): v is string => typeof v === "string")
             : [];
           entry.knowledge_refs_attached_count = knowledgeRefs.length;
-          entry.knowledge_preflight_used = entry.worker_role === "curator" || knowledgeRefs.length > 0;
-          const packetKnowledgeStatus = typeof packet.knowledge_status === "string" ? packet.knowledge_status : null;
-          if (
-            entry.worker_role === "reviewer" &&
-            (packetKnowledgeStatus === "fresh" ||
-              packetKnowledgeStatus === "stale" ||
-              packetKnowledgeStatus === "unknown" ||
-              packetKnowledgeStatus === "none")
-          ) {
-            entry.knowledge_status_at_review = packetKnowledgeStatus;
-          }
+          entry.knowledge_preflight_used = entry.worker_role === "curator";
+          const ticketPreflightUsed = ticketHasCuratorPreflight(entries, entry.ticketId);
+          entry.knowledge_status_at_review = resolveKnowledgeStatus({
+            workerRole: entry.worker_role,
+            packet,
+            preflightUsed: ticketPreflightUsed,
+          });
         }
         if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") entry.nextAction = "/lite-fix";
         if (status === "CHANGES_REQUESTED") entry.nextAction = "/lite-implement";

@@ -53,3 +53,22 @@ Anything broader → curator.
 - Short additional code when context is already sufficient
 
 Everything else must be delegated. Cost control is the reason you exist.
+
+## Canonical Packet Model (Reduced V1)
+
+When building packets for subagent delegation, use **only** the canonical field names below. Legacy names (`files_in_scope`, `write_scope`, `read_context`, `previous_step_summary`, `expected_output_contract`) must not appear in packets you construct.
+
+### Canonical packet fields
+
+| Field | Purpose |
+|---|---|
+| `allowed_files` | Unified scope: files the worker may read **and** edit. Replaces the old split of `files_in_scope` / `write_scope`. |
+| `knowledge_refs` | Read-references to existing concept documents (e.g. `wiki/concepts/*.md`). |
+| `knowledge_summary` | Concise summary of preflight knowledge, if a curator preflight was run. |
+| `knowledge_status` | Manager-resolved staleness status: `fresh` \| `stale` \| `unknown` \| `none`. **Never** set by workers — only by the build/manager. |
+
+### Reduced V1 rules (binding on build)
+
+1. **At most one curator preflight per ticket.** If knowledge becomes stale mid-loop, do not run a second refresh preflight within the same ticket.
+2. **Manager-resolved `knowledge_status`.** When build attaches `knowledge_status` to a downstream packet, build must resolve it to one of the four canonical values (`fresh`, `stale`, `unknown`, `none`). Workers must treat this value as authoritative and must not reinterpret or re-derive it.
+3. **No runtime wiki writes.** `knowledge_refs` are read-only references to existing concept documents. Do not instruct workers to create or update wiki body content during Reduced V1.
