@@ -2,7 +2,7 @@
 
 Lite-Code is a lightweight orchestration and subagent model management system built on top of OpenCode. It strategically assigns high-cost and low-cost models to support more cost-efficient development.
 
-## ✨ Key Features
+## Key Features
 
 - **Intelligent delegation (skill dispatch)**: The main agent (`build`) evaluates task complexity and automatically delegates work to the `curator`, `coder`, `tester`, `fixer`, and `reviewer` subagents.
 - **Curator-first knowledge reuse (Reduced V1)**: One sequential `curator` preflight can produce compact reusable knowledge that the manager attaches to downstream `coder` / `reviewer` packets (`knowledge_refs`, `knowledge_summary`, `knowledge_status`) so workers consult it before broad repository reads.
@@ -10,7 +10,7 @@ Lite-Code is a lightweight orchestration and subagent model management system bu
 - **Model preset management**: Instantly switch the entire set of subagent models depending on your working mode, such as cost-saving or high-quality execution.
 - **AGENTS.md-based policy**: Maintain a consistent collaboration structure through clearly defined roles and delegation rules.
 
-## 📦 Using It in Other Environments
+## Using It in Other Environments
 
 This repository works as a **reproducible OpenCode profile**. You can use it on another computer or in another environment in one of the following ways.
 
@@ -53,16 +53,16 @@ With this setup, running `opencode` in any directory will apply the Lite-Code or
 
 | Item | Location | Commit? |
 |---|---|---|
-| Provider auth (API keys) | `~/.local/share/opencode/auth.json` | ❌ |
-| Personal model preferences (overrides) | `~/.config/opencode/opencode.json` | ❌ |
-| Team-shared per-role model mapping | repository `opencode.jsonc` | ✅ |
-| Model presets | `.opencode/scripts/presets.json` | ✅ |
-| Orchestration policy | `.opencode/instructions/lite-code.md` | ✅ |
-| Runtime state (tickets/run-log) | `.opencode/state/*.json` | ❌ (gitignored) |
+| Provider auth (API keys) | `~/.local/share/opencode/auth.json` | No |
+| Personal model preferences (overrides) | `~/.config/opencode/opencode.json` | No |
+| Team-shared per-role model mapping | repository `opencode.jsonc` | Yes |
+| Model presets | `.opencode/scripts/presets.json` | Yes |
+| Orchestration policy | `.opencode/instructions/lite-code.md` | Yes |
+| Runtime state (tickets/run-log) | `.opencode/state/*.json` | No (gitignored) |
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Switch model presets
 
@@ -120,7 +120,7 @@ Use this when you want to fine-tune the model for a specific agent only.
 
 - In the OpenCode command bar, run `/subagent-model` and follow the prompts.
 
-## 🛠️ Main Components
+## Main Components
 
 | File/Directory | Role |
 |---|---|
@@ -138,7 +138,7 @@ Use this when you want to fine-tune the model for a specific agent only.
 | `plan/` | Design plans, including `2026-04-21-lc-reduced-curator-reuse-v1.md` (the active Reduced V1 spec) |
 | `opencode.jsonc` | Core project configuration and per-agent model assignments |
 
-## 📚 Curator Knowledge Reuse (Reduced V1)
+## Curator Knowledge Reuse (Reduced V1)
 
 Reduced V1 adds a minimal knowledge-reuse loop on top of the existing role-based delegation. It is designed to prove reuse value before scaling to parallel fan-out or automated wiki writes.
 
@@ -157,7 +157,7 @@ Reduced V1 adds a minimal knowledge-reuse loop on top of the existing role-based
 
 See `plan/2026-04-21-lc-reduced-curator-reuse-v1.md` for the full spec and Definition of Done.
 
-## 📝 Adding a Custom Preset
+## Adding a Custom Preset
 
 You can create your own model combination by adding a new preset object to `.opencode/scripts/presets.json`.
 
