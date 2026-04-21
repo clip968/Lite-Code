@@ -395,17 +395,24 @@ async function runSearch(keyword, flags, { configPath }) {
   try {
     const choice = await rl.question("\n번호 선택 (엔터=취소): ");
     if (!choice.trim()) return;
-    const selected = items[Number(choice) - 1];
+    const selected = items[Number(choice.trim()) - 1];
     if (!selected) {
       console.log("잘못된 번호입니다.");
       return;
     }
 
     const action = await rl.question("동작 선택: [1] set agent [2] alias 저장 [엔터 취소] : ");
-    if (action === "1") {
-      const agent = await rl.question(`agent 이름 (${KNOWN_AGENTS.join(", ")}): `);
-      await runSet(agent.trim(), selected.id, flags, { configPath });
-    } else if (action === "2") {
+    const actionTrimmed = action.trim();
+    if (actionTrimmed === "1") {
+      let agent = await rl.question(`agent 이름 (${KNOWN_AGENTS.join(", ")}): `);
+      let trimmed = agent.trim();
+      while (!KNOWN_AGENTS.includes(trimmed)) {
+        console.error(`unknown agent: ${trimmed}. Known agents: ${KNOWN_AGENTS.join(", ")}`);
+        agent = await rl.question(`agent 이름 (${KNOWN_AGENTS.join(", ")}): `);
+        trimmed = agent.trim();
+      }
+      await runSet(trimmed, selected.id, flags, { configPath });
+    } else if (actionTrimmed === "2") {
       const name = await rl.question("alias 이름: ");
       if (!name.trim()) return;
       addAlias(name.trim(), selected.id);
@@ -418,6 +425,7 @@ async function runSearch(keyword, flags, { configPath }) {
 
 async function runSet(agent, spec, flags, { configPath }) {
   if (!agent) throw new Error("agent가 필요합니다.");
+  if (!KNOWN_AGENTS.includes(agent)) throw new Error(`unknown agent: ${agent}. Known agents: ${KNOWN_AGENTS.join(", ")}`);
   if (!spec) throw new Error("model spec이 필요합니다.");
 
   const { merged: aliases } = loadAliases();
