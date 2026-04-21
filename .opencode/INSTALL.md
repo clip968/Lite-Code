@@ -25,11 +25,24 @@ mkdir -p "$(dirname "$LITE_CODE_DIR")"
 if [ -d "$LITE_CODE_DIR/.git" ]; then
   git -C "$LITE_CODE_DIR" pull --ff-only
 else
-  git clone https://github.com/<OWNER>/<REPO>.git "$LITE_CODE_DIR"
+  git clone https://github.com/clip968/Lite-Code.git "$LITE_CODE_DIR"
 fi
 ```
 
-> Replace `<OWNER>/<REPO>` with the actual repository. If the user uses a fork, use that URL.
+> Default points to `clip968/Lite-Code`. If the user uses a fork, replace the URL accordingly.
+
+## 1.5 Install `.opencode` Dependencies
+
+`.opencode/` is a small Node package (see `.opencode/package.json`) that depends on `@opencode-ai/plugin`, which OpenCode loads at runtime via the plugins in `.opencode/plugins/`. `node_modules/` is gitignored, so a fresh clone has no installed dependencies.
+
+```bash
+(cd "$LITE_CODE_DIR/.opencode" && npm install --omit=dev)
+```
+
+Verify:
+- `ls "$LITE_CODE_DIR/.opencode/node_modules/@opencode-ai/plugin"` should list the package contents (non-empty output).
+
+If `npm` is not available, stop and guide the user to install Node.js 18+ (which ships with npm).
 
 ## 2. Shell Environment Variables (idempotent)
 
@@ -92,7 +105,8 @@ Expected: Table showing per-agent current model + alias reverse mapping + cost/c
 ```bash
 lcp search gpt --connected-only --limit=5
 ```
-Expected: Up to 5 models from providers actually connected in user's auth.json.
+Expected: Up to 5 models from providers actually connected in the user's `auth.json`.  
+If Step 4 was skipped or no matching provider is authenticated yet, an empty result is acceptable and not a failure; re-run after authentication.
 
 ```bash
 node --test "$LITE_CODE_DIR/.opencode/tests/model-resolution.test.js" "$LITE_CODE_DIR/.opencode/tests/catalog.test.js"

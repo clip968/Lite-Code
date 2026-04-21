@@ -19,11 +19,11 @@ This repository works as a **reproducible OpenCode profile**. You can use it on 
 Just paste this one line into OpenCode or another AI agent chat:
 
 ```
-Fetch and follow instructions from https://raw.githubusercontent.com/<OWNER>/<REPO>/main/.opencode/INSTALL.md
+Fetch and follow instructions from https://raw.githubusercontent.com/clip968/Lite-Code/main/.opencode/INSTALL.md
 ```
 
 The AI can handle cloning, environment variable setup, and verification steps (`lcp --list`, `lcp status`, and test execution) automatically.
-Replace `<OWNER>/<REPO>` with the actual GitHub repository path. If you need a manual setup, see Methods A and B below.
+If you are using a fork, replace `clip968/Lite-Code` with your own `<OWNER>/<REPO>` path. For a manual setup, see Methods A and B below.
 
 ### Method A: Use this repository as the project root
 
