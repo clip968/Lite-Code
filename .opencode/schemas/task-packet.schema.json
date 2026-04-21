@@ -42,7 +42,19 @@
     "risk_level": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
     "budget_hint": { "type": ["string", "null"] },
     "iteration": { "type": "integer", "minimum": 0 },
-    "mode": { "type": "string", "enum": ["manual", "auto"] }
+    "mode": { "type": "string", "enum": ["manual", "auto"] },
+    "knowledge_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "knowledge_summary": {
+      "type": "string",
+      "maxLength": 600
+    },
+    "knowledge_status": {
+      "type": "string",
+      "enum": ["fresh", "stale", "unknown", "none"]
+    }
   },
   "additionalProperties": true
 }

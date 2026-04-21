@@ -1,5 +1,8 @@
 # Lite-Code Architecture (v2 Minimal)
 
+<!-- LITE-CODE:AUTO:START summary -->
+<!-- LITE-CODE:AUTO:END summary -->
+
 Lite-Code는 `plan`, `build`, `coder`, `tester`, `fixer`, `reviewer` 역할 분리를 유지하면서, v2에서 다음을 강화한다.
 
 1. 결정적 라우팅 함수(`.opencode/plugins/routing.ts`)

@@ -18,6 +18,8 @@ Evaluate one implemented ticket and decide if it is acceptable based on evidence
 
 When invoked, you may receive a **manager packet** (`files_in_scope`, `read_context`, `input_artifacts`, verify/fix summaries, `expected_output_contract`, `mode: auto`). You are **read-only** — do not implement fixes.
 
+When present, treat `knowledge_refs`, `knowledge_summary`, and `knowledge_status` as manager-provided context fields for Reduced V1.
+
 ## Required Decision Output (always use this exact structure)
 
 ### 1) Decision
@@ -42,6 +44,10 @@ When invoked, you may receive a **manager packet** (`files_in_scope`, `read_cont
 - **Evidence-based only**: Use only verifiable artifacts (code, logs, test results).
 - **No scope creep**: Explicitly flag and reject out-of-ticket changes or broad refactors.
 - **Actionable rejection**: Provide minimal, testable follow-up tickets (`T-FIX-n`) if rejecting.
+- **Knowledge-first review order (Reduced V1)**: Check `knowledge_summary` and `knowledge_refs` before broader repository reads.
+- **Manager-resolved status**: Treat `knowledge_status` as authoritative packet status (`fresh | stale | unknown | none`), not as a value to reinterpret.
+- **Stale knowledge handling**: Do not approve when acceptance materially depends on stale knowledge and no fresh direct evidence compensates for it.
+- **Explicit stale rejection signal**: When stale knowledge materially affects rejection, include `stale_knowledge` in `rejection_causes` and keep existing booleans (for example `scope_violation`, `constraint_violation`) consistent.
 
 ## Permission Boundary
 

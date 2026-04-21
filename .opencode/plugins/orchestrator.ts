@@ -33,6 +33,10 @@ interface RunLogEntry {
   handoff_count: number;
   scope_violation: boolean;
   first_pass: boolean;
+  knowledge_preflight_used: boolean;
+  knowledge_refs_attached_count: number;
+  knowledge_status_at_review: "fresh" | "stale" | "unknown" | "none";
+  ticket_cycle_ms: number;
   notes: Record<string, unknown>;
 }
 
@@ -172,6 +176,10 @@ function makeEntry(command: string, args?: Record<string, unknown>): RunLogEntry
     handoff_count: 0,
     scope_violation: false,
     first_pass: false,
+    knowledge_preflight_used: false,
+    knowledge_refs_attached_count: 0,
+    knowledge_status_at_review: "none",
+    ticket_cycle_ms: 0,
     notes: {
       source: "orchestrator-v2",
       softValidation: true,
@@ -206,6 +214,10 @@ function bootstrapLog(): RunLogFile {
       handoff_count: "Cumulative handoff count",
       scope_violation: "Whether scope violation was observed",
       first_pass: "Whether ticket passed without fixer loop",
+      knowledge_preflight_used: "Whether Reduced V1 sequential curator knowledge preflight was used",
+      knowledge_refs_attached_count: "Count of knowledge_refs attached to the worker packet",
+      knowledge_status_at_review: "Knowledge status observed at review time (fresh|stale|unknown|none)",
+      ticket_cycle_ms: "Elapsed milliseconds from first started entry to terminal update within a ticket run",
       notes: "Structured routing/validation diagnostics",
     },
     allowedStatus: ["STARTED", "PASS", "FAIL", "INSUFFICIENT_EVIDENCE", "APPROVED", "CHANGES_REQUESTED", "BLOCKED", "RECORDED"],
@@ -267,6 +279,11 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
           ? packet.sibling_workers.filter((v): v is string => typeof v === "string")
           : [];
         entry.notes.parallelExecution = entry.parallel_group_id !== null;
+        const knowledgeRefs = Array.isArray(packet.knowledge_refs)
+          ? packet.knowledge_refs.filter((v): v is string => typeof v === "string")
+          : [];
+        entry.knowledge_refs_attached_count = knowledgeRefs.length;
+        entry.knowledge_preflight_used = entry.worker_role === "curator" || knowledgeRefs.length > 0;
       }
       if (errors.length > 0) {
         entry.notes.taskPacketValid = false;
@@ -297,10 +314,34 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
       for (let i = entries.length - 1; i >= 0; i -= 1) {
         const sameRun = packetRunId ? entries[i].runId === packetRunId : entries[i].command === command;
         if (sameRun && entries[i].status === "STARTED") {
+          const startedAtRaw = entries[i].timestamp;
           entries[i].status = status;
           entries[i].timestamp = nowIso();
+          if (packet) {
+            const knowledgeRefs = Array.isArray(packet.knowledge_refs)
+              ? packet.knowledge_refs.filter((v): v is string => typeof v === "string")
+              : [];
+            entries[i].knowledge_refs_attached_count = knowledgeRefs.length;
+            entries[i].knowledge_preflight_used = entries[i].worker_role === "curator" || knowledgeRefs.length > 0;
+            const packetKnowledgeStatus =
+              typeof packet.knowledge_status === "string" ? packet.knowledge_status : null;
+            if (
+              entries[i].worker_role === "reviewer" &&
+              (packetKnowledgeStatus === "fresh" ||
+                packetKnowledgeStatus === "stale" ||
+                packetKnowledgeStatus === "unknown" ||
+                packetKnowledgeStatus === "none")
+            ) {
+              entries[i].knowledge_status_at_review = packetKnowledgeStatus;
+            }
+          }
           if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") entries[i].nextAction = "/lite-fix";
           if (status === "CHANGES_REQUESTED") entries[i].nextAction = "/lite-implement";
+          const startedAt = Date.parse(startedAtRaw);
+          const endedAt = Date.now();
+          if (Number.isFinite(startedAt) && endedAt >= startedAt) {
+            entries[i].ticket_cycle_ms = endedAt - startedAt;
+          }
           updated = true;
           break;
         }
@@ -320,6 +361,21 @@ export const OrchestratorPlugin = async (ctx: PluginContext) => {
           entry.sibling_workers = Array.isArray(packet.sibling_workers)
             ? packet.sibling_workers.filter((v): v is string => typeof v === "string")
             : [];
+          const knowledgeRefs = Array.isArray(packet.knowledge_refs)
+            ? packet.knowledge_refs.filter((v): v is string => typeof v === "string")
+            : [];
+          entry.knowledge_refs_attached_count = knowledgeRefs.length;
+          entry.knowledge_preflight_used = entry.worker_role === "curator" || knowledgeRefs.length > 0;
+          const packetKnowledgeStatus = typeof packet.knowledge_status === "string" ? packet.knowledge_status : null;
+          if (
+            entry.worker_role === "reviewer" &&
+            (packetKnowledgeStatus === "fresh" ||
+              packetKnowledgeStatus === "stale" ||
+              packetKnowledgeStatus === "unknown" ||
+              packetKnowledgeStatus === "none")
+          ) {
+            entry.knowledge_status_at_review = packetKnowledgeStatus;
+          }
         }
         if (status === "FAIL" || status === "INSUFFICIENT_EVIDENCE") entry.nextAction = "/lite-fix";
         if (status === "CHANGES_REQUESTED") entry.nextAction = "/lite-implement";

@@ -1,9 +1,9 @@
 ---
-description: Stage 5-lite — main-session manager auto-orchestrates coder/tester/fixer/reviewer workers
+description: Stage 5-lite — main-session manager auto-orchestrates curator/coder/tester/fixer/reviewer workers
 subtask: false
 ---
 
-You are the **Manager** for **Stage 5-lite** in the **current main session** (this invocation is **not** a subagent). You **orchestrate**; you **do not** replace `coder`/`tester`/`fixer` for implementation-heavy work. Use the **task/subagent** mechanism **only** to invoke workers: `coder`, `tester`, `fixer`, `reviewer`. You may run multiple workers in parallel **only** when their packets are independent (no overlap/dependency).
+You are the **Manager** for **Stage 5-lite** in the **current main session** (this invocation is **not** a subagent). You **orchestrate**; you **do not** replace `coder`/`tester`/`fixer` for implementation-heavy work. Use the **task/subagent** mechanism **only** to invoke workers: `curator`, `coder`, `tester`, `fixer`, `reviewer`. You may run multiple workers in parallel **only** when their packets are independent (no overlap/dependency).
 
 ## Absolute Rules
 
@@ -25,6 +25,8 @@ You are the **Manager** for **Stage 5-lite** in the **current main session** (th
 | Implement | `/lite-implement` → **built-in `build`** | Delegate to **custom `coder`** subagent with packet |
 | Verify / Fix / Review | `/lite-verify` etc. | Delegate to `tester` / `fixer` / `reviewer` subagents with packet |
 | Final say (normal) | `reviewer` | Often **manager** summary; **`reviewer`** when mandatory triggers fire |
+
+In Reduced V1 auto mode, the manager may run one sequential `curator` structured preflight before delegating to `coder` or `reviewer` when knowledge preflight conditions are met.
 
 ## Routing States (conceptual)
 
@@ -63,6 +65,36 @@ Run these checks in order:
 
 Do not delegate until this gate is completed.
 
+### Step 4.5 — Knowledge preflight (Reduced V1, sequential)
+
+Run this step before delegating to `coder` or `reviewer` when context is low, scope is likely broad (3+ reads), or review sensitivity is high.
+
+Rules:
+- Reduced V1 allows **at most one curator preflight per ticket**.
+- This preflight is **sequential only** in Reduced V1.
+- Call `curator` in `structured` mode and validate output against `.opencode/schemas/context-packet.schema.json`.
+- If `knowledge_candidates` exist, validate candidate shape and constraints:
+  - each `doc_ref` must point to an existing `wiki/concepts/*.md`
+  - each `summary` must be compact (<= 600 chars)
+  - each candidate must include `source_files`, `last_verified_at`, `confidence`
+- Invalid `doc_ref` candidates are dropped individually; do not fail the full packet for one invalid candidate.
+- Resolve candidate freshness using git timestamps from each source file:
+  - command: `git log -1 --format=%cI -- <path>`
+  - `fresh`: all source file commit times <= `last_verified_at`
+  - `stale`: any source file commit time > `last_verified_at`
+  - `unknown`: git/file resolution fails, source file list is empty, or comparison is unsafe
+- Aggregate packet-level `knowledge_status` conservatively:
+  - `stale` if any attached candidate is stale
+  - else `unknown` if any attached candidate is unknown
+  - else `fresh` if at least one attached candidate is fresh
+  - else `none`
+- Attach compact downstream knowledge fields only when useful:
+  - `knowledge_refs`
+  - `knowledge_summary` (<= 600 chars; manager-composed)
+  - `knowledge_status`
+- If no usable candidates remain, set `knowledge_refs: []` and `knowledge_status: "none"` (summary optional).
+- Do not perform runtime wiki body writes in Reduced V1.
+
 ### Step 5 — Build **Delegation Packet** (all worker calls)
 
 Every packet **must** follow `.opencode/schemas/task-packet.schema.json`.
@@ -72,7 +104,7 @@ Required fields use the schema as the single source of truth; this document keep
 - `run_id`, `ticket_id`, `worker_role`
 - `goal`, `allowed_files`, `constraints`, `acceptance_criteria`, `non_scope`
 - `risk_level`, `iteration`, `mode`
-- optional: `context_refs`, `test_requirements`, `budget_hint`, `forbidden_files`
+- optional: `context_refs`, `test_requirements`, `budget_hint`, `forbidden_files`, `knowledge_refs`, `knowledge_summary`, `knowledge_status`
 
 **Size:** no full transcripts; no whole-repo dump; prior step **summary** only.
 

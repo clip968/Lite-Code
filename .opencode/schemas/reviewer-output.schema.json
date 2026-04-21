@@ -21,7 +21,24 @@
     "constraint_violation": { "type": "boolean" },
     "required_actions": { "type": "array", "items": { "type": "string" } },
     "wiki_update_needed": { "type": "boolean" },
-    "wiki_update_draft": { "type": "string" }
+    "wiki_update_draft": { "type": "string" },
+    "knowledge_status": {
+      "type": "string",
+      "enum": ["fresh", "stale", "unknown", "none"]
+    },
+    "rejection_causes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "acceptance_failure",
+          "insufficient_evidence",
+          "scope_violation",
+          "constraint_violation",
+          "stale_knowledge"
+        ]
+      }
+    }
   },
   "additionalProperties": false
 }

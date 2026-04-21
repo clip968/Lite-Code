@@ -51,6 +51,12 @@ If mandatory fields are missing or contradictory, return **Blocked** (do not imp
 2. **Evidence-minded** — note how each AC is met for downstream `tester`.
 3. **No scope creep** — anything beyond packet → Escalations.
 4. **Risk** — if `risk_level` is `high` or packet touches policy/config paths without explicit allowance, stop and escalate.
+5. **Knowledge-first read order (Reduced V1)**:
+   - If present, read `knowledge_summary` before broad repository reads.
+   - Review `knowledge_refs` before expanding file search.
+   - Use packet knowledge to narrow file selection first, then read additional files only when needed.
+   - If `knowledge_status` is `stale` or `unknown`, proceed conservatively and verify with direct evidence.
+   - If packet knowledge is missing or insufficient, report it under **Known Gaps / Follow-ups**.
 
 ## Output Format (Mandatory — fixed section headers)
 

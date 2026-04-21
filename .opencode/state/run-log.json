@@ -21,6 +21,10 @@
     "handoff_count": "Number of handoffs so far for this run",
     "scope_violation": "Whether out-of-scope edits were detected",
     "first_pass": "Whether ticket passed without entering fix loop",
+    "knowledge_preflight_used": "Whether Reduced V1 sequential curator preflight was used",
+    "knowledge_refs_attached_count": "Number of knowledge refs attached to downstream packet",
+    "knowledge_status_at_review": "Knowledge freshness state observed at review time",
+    "ticket_cycle_ms": "Elapsed milliseconds for ticket lifecycle update",
     "notes": "Optional structured notes including routing and validation observations"
   },
   "allowedStatus": [

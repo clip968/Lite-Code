@@ -43,7 +43,29 @@
     },
     "wiki_refs": { "type": "array", "items": { "type": "string" } },
     "summary": { "type": "string" },
-    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "knowledge_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["doc_ref", "summary", "source_files", "last_verified_at", "confidence"],
+        "properties": {
+          "doc_ref": { "type": "string" },
+          "summary": { "type": "string", "maxLength": 600 },
+          "source_files": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "last_verified_at": { "type": "string", "format": "date-time" },
+          "confidence": { "type": "string", "enum": ["low", "medium", "high"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "knowledge_gaps": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
   },
   "additionalProperties": false
 }

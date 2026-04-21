@@ -55,6 +55,7 @@ When the user's request involves "understanding / explaining / status / analysis
 ### Subagents (invoked by build via the task tool)
 | Agent | Role | Model policy |
 |---|---|---|
+| `curator` | Read-only context collection and reuse-oriented preflight context packets | Low-cost/fast |
 | `coder` | Code implementation within a single ticket scope | Low-cost/fast |
 | `tester` | Verification against acceptance criteria | Low-cost/fast |
 | `fixer` | Minimal-scope fix after verification failure | Low-cost/fast |
@@ -98,6 +99,14 @@ No delegation should start until this decision gate is completed.
 4. Direct calls between subagents are prohibited (must go through build).
 5. If a subagent reports a failure, notify the user and ask about next steps.
 6. All instructions sent to subagents must be in English. Do not send subagent prompts in any other language unless the user explicitly instructs you to do so.
+
+### Knowledge preflight policy (Reduced V1)
+- For implementation or review tasks likely to require broad reads (for example low context clarity, review-sensitive work, or expected 3+ repository reads), run **one sequential `curator` preflight** before delegating to `coder` or `reviewer`.
+- Reduced V1 allows **at most one curator preflight per ticket**. If knowledge becomes stale mid-loop, do not run refresh preflight in the same ticket.
+- Preflight output may be attached to downstream packets via optional fields: `knowledge_refs`, `knowledge_summary`, `knowledge_status`.
+- `knowledge_status` is manager-resolved (`fresh | stale | unknown | none`), not worker-guessed.
+- Do not perform runtime wiki body writes in Reduced V1. `knowledge_refs` are read references to existing concept documents only.
+- Note: `wiki/concepts/*.md` is the current Lite-Code convention for concept documents. Repository adapters may map this to an equivalent concept-document path.
 
 ### Parallel-safe combinations (policy)
 
