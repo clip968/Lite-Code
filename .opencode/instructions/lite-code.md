@@ -8,31 +8,49 @@ This document defines **shared orchestration rules** for Lite-Code. It is not pr
 
 > **This section applies only to the `build` agent. Other subagents (`curator`, `coder`, `tester`, `fixer`, `reviewer`) should ignore it.**
 
-`build` is an expensive, high-level agent. Codebase exploration and understanding is the job of the **low-cost `curator` subagent**.
+`build` is an expensive, high-level agent. Direct `build -> coder` delegation is the default for small explicit implementation tickets; curator preflight is a gated exception.
 
-### What build must NOT do
+### Direct-path gate
 
-When the user's request involves "understanding / explaining / status / analysis / summarizing / checking structure / what exists / what's missing", or is in an early exploration phase where the scope is not yet defined:
+`build` must first decide whether the ticket is direct-path eligible or needs curator preflight.
+
+Direct path is the default for small explicit implementation tickets. Use direct `build -> coder` when one or more is true:
+
+- explicit file path provided
+- explicit symbol/function/class target provided
+- change naturally converges to a 1-2 file edit
+- known bugfix / trivial config change / rename / wording fix / similar narrow change
+- build can identify scope after one narrow confirmation read
+
+Use curator only when one or more is true:
+
+- request is broad or ambiguous enough that 3+ file exploration is likely
+- task is review-sensitive enough that reviewer path is highly likely
+- existing knowledge reference is likely to reduce scope materially
+- build still cannot identify scope after one narrow read
+
+### What build must not do
+
+When the user's request is broad, ambiguous, or still lacks a narrow scope:
 
 - Do **not** call `Read`, `Grep`, or `Glob` two or more times in a row directly.
 - Do **not** read "structure overview" file sets such as `README`, `package.json`, entry-point files, `routes/`, `controllers/`, `src/`, `app/` directly.
-- The moment you think "let me check the structure first", **stop** and delegate to curator.
+- The moment you think "let me check the structure first", **stop** and gate to curator.
 
 ### What build MUST do
 
-1. Your **first action** must be to **call `curator` via the `task` tool**.
-2. Payload:
-   - `mode`: `"exploration"` (for understanding/explaining requests) or `"structured"` (for context collection before implementation)
-   - `user_request`: the user's original text
-   - `hints`: suspected relevant keywords/directories (or leave empty)
-3. Answer the user based **only** on curator's result (Markdown report or JSON packet).
-4. Only when curator's result is clearly insufficient may you read **1–2 files** directly; if you need more, delegate to curator again.
+1. Decide direct path versus curator preflight before any delegation.
+2. If direct path applies, delegate directly to `coder`.
+3. If curator preflight applies, use `task` with `mode` `"exploration"` or `"structured"` as appropriate, then proceed only from curator's result.
+4. After a valid curator preflight, build must not broadly re-explore; it may only validate returned scope, resolve authoritative `knowledge_status`, assemble compact downstream `knowledge_refs` / `knowledge_summary`, and delegate.
 
 ### Exceptions where build may read directly
 
 - The user specified an explicit path for 1–2 files
 - Curator just pointed to a specific file + line range that you need to confirm
 - A single-file, single-function question
+
+After a valid curator preflight, build must not broadly re-explore; it may only validate returned scope, resolve authoritative `knowledge_status`, assemble compact downstream `knowledge_refs` / `knowledge_summary`, and delegate.
 
 ---
 
@@ -78,17 +96,17 @@ Required gate checks (in order):
 No delegation should start until this decision gate is completed.
 
 ### When build should call a subagent
+- Small explicit implementation tickets → `coder` directly
 - **Code understanding / exploration / status summary (requests requiring 3+ file reads)** → `curator` (mode: exploration)
 - Complex implementation involving 3+ target files → `curator` → `coder`
 - Verification needed after implementation → `tester`
 - Fix needed after test failure → `fixer`
 - Code review / design review needed → `curator` → `reviewer`
 
-### When build should handle directly
-- Simple file edits (1–2 files, context already provided)
-- Answering questions when context is already sufficient
-- Checking the content of a specific 1–2 files
-- Simple bug fixes
+### When build may answer directly
+- Questions that do not require code changes
+- Confirming an already-decided routing or scope choice
+- Short acknowledgements and status responses
 
 > **Prohibition:** `build` must not broadly scan the codebase using `Read`/`Grep`/`Glob` while running an expensive model. This work must always be delegated to curator.
 
@@ -103,7 +121,7 @@ No delegation should start until this decision gate is completed.
 ### Knowledge preflight policy (Reduced V1)
 - For implementation or review tasks likely to require broad reads (for example low context clarity, review-sensitive work, or expected 3+ repository reads), run **one sequential `curator` preflight** before delegating to `coder` or `reviewer`.
 - Reduced V1 allows **at most one curator preflight per ticket**. If knowledge becomes stale mid-loop, do not run refresh preflight in the same ticket.
-- Preflight output is attached to downstream packets via optional fields defined in `.opencode/schemas/task-packet.schema.json`: `knowledge_refs`, `knowledge_summary`, `knowledge_status`.
+- Preflight output is attached to downstream packets via canonical fields: `knowledge_refs`, `knowledge_summary`, `knowledge_status`.
 - `knowledge_status` is manager-resolved (`fresh | stale | unknown | none`), not worker-guessed.
 - Do not perform runtime wiki body writes in Reduced V1. `knowledge_refs` are read references to existing concept documents only.
 - Note: `wiki/concepts/*.md` is the current Lite-Code convention for concept documents. Repository adapters may map this to an equivalent concept-document path.
@@ -111,7 +129,7 @@ No delegation should start until this decision gate is completed.
 ### Parallel-safe combinations (policy)
 
 - ✅ Allowed in parallel:
-  - multiple `curator` runs on non-overlapping file scopes
+  - `curator` runs for independent tickets with isolated file scopes (max one preflight per ticket)
   - independent tickets with isolated file scopes (outside single-ticket loops)
   - other independent worker packets with explicit non-overlapping scopes
 - ⛔ Must remain sequential:

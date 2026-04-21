@@ -181,6 +181,16 @@ function locateTopLevelAgentBlock(raw) {
       else if (ch === "\"") inString = false;
       continue;
     }
+    if (ch === "/" && raw[i + 1] === "/") {
+      while (i < raw.length && raw[i] !== "\n") i++;
+      continue;
+    }
+    if (ch === "/" && raw[i + 1] === "*") {
+      i += 2;
+      while (i < raw.length && !(raw[i] === "*" && raw[i + 1] === "/")) i++;
+      i += 1;
+      continue;
+    }
     if (ch === "\"") {
       inString = true;
       const start = i;
@@ -189,6 +199,7 @@ function locateTopLevelAgentBlock(raw) {
         if (raw[i] === "\\") i += 1;
         i += 1;
       }
+      inString = false;
       const key = raw.slice(start + 1, i);
       if (depth !== 1 || key !== "agent") continue;
 

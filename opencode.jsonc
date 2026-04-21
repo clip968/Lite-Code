@@ -9,118 +9,16 @@
   ],
   "agent": {
     "curator": {
-      "model": "deepinfra/MiniMaxAI/MiniMax-M2.5"
+      "model": "github-copilot/gemini-3-flash-preview"
     },
     "coder": {
+      "model": "github-copilot/gpt-4o-mini"
+    },
+    "tester": {
+      "model": "openai/gpt-5.4-mini"
+    },
+    "fixer": {
       "model": "github-copilot/gpt-5.3-codex"
-    },
-    "tester": {
-      "model": "github-copilot/gemini-3.1-pro-preview"
-    },
-    "fixer": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "reviewer": {
-      "model": "openai/gpt-5.4"
-    }
-  },
-  "agent": {
-    "curator": {
-      "model": "github-copilot/gemini-3.1-pro-preview"
-    },
-    "coder": {
-      "model": "github-copilot/gpt-5.3-codex"
-    },
-    "tester": {
-      "model": "github-copilot/gemini-3.1-pro-preview"
-    },
-    "fixer": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "reviewer": {
-      "model": "openai/gpt-5.4"
-    }
-  },
-  "agent": {
-    "curator": {
-      "model": "github-copilot/gemini-3.1-pro-preview"
-    },
-    "coder": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "tester": {
-      "model": "github-copilot/gemini-3.1-pro-preview"
-    },
-    "fixer": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "reviewer": {
-      "model": "openai/gpt-5.4"
-    }
-  },
-  "agent": {
-    "curator": {
-      "model": "github-copilot/gemini-3.1-pro-preview"
-    },
-    "coder": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "tester": {
-      "model": "openai/gpt-5.4-mini"
-    },
-    "fixer": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "reviewer": {
-      "model": "openai/gpt-5.4"
-    }
-  },
-  "agent": {
-    "curator": {
-      "model": "github-copilot/gemini-3-flash-preview"
-    },
-    "coder": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "tester": {
-      "model": "openai/gpt-5.4-mini"
-    },
-    "fixer": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "reviewer": {
-      "model": "openai/gpt-5.4"
-    }
-  },
-  "agent": {
-    "curator": {
-      "model": "github-copilot/gemini-3-flash-preview"
-    },
-    "coder": {
-      "model": "openai/gpt-5.4-mini"
-    },
-    "tester": {
-      "model": "openai/gpt-5.4-mini"
-    },
-    "fixer": {
-      "model": "deepinfra/zai-org/GLM-5.1"
-    },
-    "reviewer": {
-      "model": "openai/gpt-5.4"
-    }
-  },
-  "agent": {
-    "curator": {
-      "model": "github-copilot/gemini-3-flash-preview"
-    },
-    "coder": {
-      "model": "openai/gpt-5.4-mini"
-    },
-    "tester": {
-      "model": "openai/gpt-5.4-mini"
-    },
-    "fixer": {
-      "model": "deepinfra/moonshotai/Kimi-K2.5"
     },
     "reviewer": {
       "model": "openai/gpt-5.4"

@@ -65,29 +65,31 @@ Run these checks in order:
 
 Do not delegate until this gate is completed.
 
-### Step 4.5 — Knowledge preflight (Reduced V1, sequential)
+### Step 4.5 — Decide direct path vs curator preflight
 
-Run this step before delegating to `coder` or `reviewer` when context is low, scope is likely broad (3+ reads), or review sensitivity is high.
+- Use direct `build -> coder` dispatch by default for small explicit implementation tickets.
+- Use curator only when the preflight gate is met:
+  - broad or ambiguous request with likely 3+ file exploration
+  - review-sensitive task
+  - existing knowledge refs likely to reduce scope
+  - scope still unclear after one narrow read
 
-Rules:
-- Reduced V1 allows **at most one curator preflight per ticket**.
-- This preflight is **sequential only** in Reduced V1.
-- Call `curator` in `structured` mode and validate the returned preflight artifact against `.opencode/schemas/task-packet.schema.json` as the downstream packet shape, without implying the curator emitted the final delegation packet.
-- Treat `knowledge_refs`, `knowledge_summary`, and manager-resolved `knowledge_status` as existing Reduced V1 fields, not planned additions.
-- `knowledge_status` is authoritative only because the manager resolves it from the preflight context; do not delegate freshness ownership to runtime routing/plugins or recompute it here.
-- If no usable knowledge is attached, set `knowledge_refs: []` and `knowledge_status: "none"` (summary optional).
-- Do not perform runtime wiki body writes in Reduced V1.
+If curator preflight is used, keep it sequential and reduce follow-up exploration.
 
-### Step 5 — Build **Delegation Packet** (all worker calls)
+### Step 5 — Assemble and delegate the downstream packet
 
 Every packet **must** follow `.opencode/schemas/task-packet.schema.json`.
-The schema is the single source of truth; this document keeps only a summary, and the manager builds the final packet from the ticket context plus any curator preflight artifact.
+The manager assembles the downstream packet from the ticket context and, when present, the curator preflight artifact.
 
-- `packet_version`, `request_id`, `schema_version`
-- `run_id`, `ticket_id`, `worker_role`
-- `goal`, `allowed_files`, `constraints`, `acceptance_criteria`, `non_scope`
-- `risk_level`, `iteration`, `mode`
-- optional: `context_refs`, `test_requirements`, `budget_hint`, `knowledge_refs`, `knowledge_summary`, manager-resolved `knowledge_status`
+- If curator preflight was used:
+  - validate the returned preflight artifact against the downstream packet shape
+  - resolve manager-owned `knowledge_status`
+  - attach `allowed_files`, `knowledge_refs`, `knowledge_summary`, and `knowledge_status`
+  - delegate immediately without broad re-exploration
+- If direct path was used:
+  - construct the downstream packet with `allowed_files`
+  - omit knowledge fields when they are not needed
+  - delegate immediately
 
 **Size:** no full transcripts; no whole-repo dump; prior step **summary** only.
 

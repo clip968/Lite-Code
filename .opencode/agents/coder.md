@@ -57,6 +57,15 @@ If mandatory fields are missing or contradictory, return **Blocked** (do not imp
    - If `knowledge_status` is `stale` or `unknown`, proceed conservatively and verify with direct evidence.
    - If packet knowledge is missing or insufficient, report it under **Known Gaps / Follow-ups**.
 
+## Direct-Path Behavior
+
+- A packet with `allowed_files` and no knowledge fields is valid direct-path input.
+- Use `allowed_files` as the primary scope contract.
+- Missing knowledge fields are normal and are not a blocker.
+- Do not request a new preflight only because knowledge fields are absent.
+- Request more context only when implementation scope still cannot be determined safely.
+- When `knowledge_refs`, `knowledge_summary`, or `knowledge_status` are present, treat them as optional accelerators, not required prerequisites.
+
 ## Output Format (Mandatory — fixed section headers)
 
 Use **exactly** these top-level sections in order:

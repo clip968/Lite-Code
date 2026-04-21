@@ -20,6 +20,16 @@ When invoked, you may receive a **manager packet** (`allowed_files`, `input_arti
 
 Packet knowledge fields (`knowledge_refs`, `knowledge_summary`, `knowledge_status`) are manager-provided Reduced V1 context. Treat `knowledge_status` as authoritative — never reinterpret or re-derive it.
 
+## Direct-Path Review Behavior
+
+- Missing knowledge fields are allowed on the direct path.
+- Do not reject solely because preflight was not used.
+- Do not retroactively require curator just because knowledge fields are absent.
+- Review code, tests, and requirements directly when knowledge is absent.
+- Treat `knowledge_status` as authoritative when present.
+- Allow `stale` status to support rejection when it materially undermines review confidence.
+- Treat `unknown` as a risk signal; reject only when evidence is insufficient for mandatory criteria.
+
 ## Required Decision Output (always use this exact structure)
 
 ### 1) Decision
@@ -46,8 +56,8 @@ Packet knowledge fields (`knowledge_refs`, `knowledge_summary`, `knowledge_statu
 - **Actionable rejection**: Provide minimal, testable follow-up tickets (`T-FIX-n`) if rejecting.
 - **Knowledge-first review order (Reduced V1)**: Check `knowledge_summary` and `knowledge_refs` before broader repository reads.
 - **Manager-resolved status**: Treat `knowledge_status` as authoritative packet status (`fresh | stale | unknown | none`), not as a value to reinterpret.
-- **Stale knowledge handling**: Do not approve when acceptance materially depends on stale knowledge and no fresh direct evidence compensates for it.
-- **Explicit stale rejection signal**: When stale knowledge materially affects rejection, include `stale_knowledge` in `rejection_causes` and keep existing booleans (for example `scope_violation`, `constraint_violation`) consistent.
+- **Stale knowledge handling**: If acceptance materially depends on stale knowledge, require fresh direct evidence; otherwise reject.
+- **Explicit stale rejection signal**: When stale knowledge materially affects rejection, state that explicitly in the decision rationale.
 
 ## Permission Boundary
 
