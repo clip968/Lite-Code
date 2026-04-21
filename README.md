@@ -4,7 +4,9 @@ Lite-Code is a lightweight orchestration and subagent model management system bu
 
 ## ✨ Key Features
 
-- **Intelligent delegation (skill dispatch)**: The main agent (`build`) evaluates task complexity and automatically delegates work to the `coder`, `tester`, `fixer`, and `reviewer` subagents.
+- **Intelligent delegation (skill dispatch)**: The main agent (`build`) evaluates task complexity and automatically delegates work to the `curator`, `coder`, `tester`, `fixer`, and `reviewer` subagents.
+- **Curator-first knowledge reuse (Reduced V1)**: One sequential `curator` preflight can produce compact reusable knowledge that the manager attaches to downstream `coder` / `reviewer` packets (`knowledge_refs`, `knowledge_summary`, `knowledge_status`) so workers consult it before broad repository reads.
+- **Deterministic staleness rule**: The manager resolves `knowledge_status` (`fresh | stale | unknown | none`) by comparing each source file's git commit time against the curator's `last_verified_at`, so reviewers can explicitly reject on `stale_knowledge`.
 - **Model preset management**: Instantly switch the entire set of subagent models depending on your working mode, such as cost-saving or high-quality execution.
 - **AGENTS.md-based policy**: Maintain a consistent collaboration structure through clearly defined roles and delegation rules.
 
@@ -123,13 +125,37 @@ Use this when you want to fine-tune the model for a specific agent only.
 | File/Directory | Role |
 |---|---|
 | `AGENTS.md` | Repository-specific rules (pointer file) |
-| `.opencode/instructions/lite-code.md` | Shared Lite-Code orchestration policy (reusable) |
+| `.opencode/instructions/lite-code.md` | Shared Lite-Code orchestration policy (reusable), including Reduced V1 knowledge preflight rules |
+| `.opencode/commands/lite-auto.md` | Auto orchestration command; defines the sequential curator preflight step (Step 4.5) |
+| `.opencode/agents/` | Agent definition files (`build`, `curator`, `coder`, `tester`, `fixer`, `reviewer`) loaded automatically by OpenCode |
+| `.opencode/schemas/` | Packet and output JSON schemas (context / task / reviewer) including optional `knowledge_*` fields |
+| `.opencode/plugins/` | Local plugins, including `orchestrator.ts` which records Reduced V1 metric fields in `run-log.json` |
 | `.opencode/scripts/` | Model preset management scripts and data |
 | `.opencode/commands/` | Custom commands such as `/switch-preset` and `/subagent-model` |
-| `.opencode/agents/` | Agent definition files (`build`, `curator`, `coder`, `tester`, `fixer`, `reviewer`) loaded automatically by OpenCode |
 | `.opencode/prompts/` | Reference design documents. **Not automatically loaded at OpenCode runtime** (you must update files under `agents/` for actual behavior changes) |
-| `.opencode/plugins/` | Local plugins (directory-based auto-loading) |
+| `.opencode/state/run-log.json` | Append-oriented run ledger; records Reduced V1 fields `knowledge_preflight_used`, `knowledge_refs_attached_count`, `knowledge_status_at_review`, `ticket_cycle_ms` |
+| `wiki/concepts/` | Stable architecture concept documents referenced by curator's `knowledge_candidates.doc_ref` |
+| `plan/` | Design plans, including `2026-04-21-lc-reduced-curator-reuse-v1.md` (the active Reduced V1 spec) |
 | `opencode.jsonc` | Core project configuration and per-agent model assignments |
+
+## 📚 Curator Knowledge Reuse (Reduced V1)
+
+Reduced V1 adds a minimal knowledge-reuse loop on top of the existing role-based delegation. It is designed to prove reuse value before scaling to parallel fan-out or automated wiki writes.
+
+- **Trigger**: When context clarity is low, scope is likely broad (3+ reads), or review sensitivity is high, the manager runs **one sequential `curator` preflight** per ticket.
+- **Curator output** (optional extensions to `.opencode/schemas/context-packet.schema.json`):
+  - `knowledge_candidates` — up to 3 compact summaries, each pointing to an existing `wiki/concepts/*.md` via `doc_ref`, with `source_files`, ISO-8601 `last_verified_at`, and `confidence`.
+  - `knowledge_gaps` — short strings describing unresolved context gaps.
+- **Manager responsibility**:
+  - Validate candidates, drop invalid `doc_ref`s individually.
+  - Resolve freshness per source file via `git log -1 --format=%cI -- <path>` and aggregate packet-level `knowledge_status` conservatively (`stale` > `unknown` > `fresh` > `none`).
+  - Attach compact `knowledge_refs`, `knowledge_summary` (≤ 600 chars), `knowledge_status` to downstream packets.
+- **Worker responsibility**:
+  - `coder` reads `knowledge_summary` / `knowledge_refs` before broad repository scans and narrows file selection first.
+  - `reviewer` treats `knowledge_status` as authoritative and rejects with `stale_knowledge` in `rejection_causes` when acceptance materially depends on stale knowledge.
+- **Out of scope in Reduced V1**: parallel curator fan-out, runtime wiki body writes, refresh-preflight within the same ticket.
+
+See `plan/2026-04-21-lc-reduced-curator-reuse-v1.md` for the full spec and Definition of Done.
 
 ## 📝 Adding a Custom Preset
 
